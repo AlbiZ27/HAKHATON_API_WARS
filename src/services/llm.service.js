@@ -10,7 +10,7 @@ const { validateInvoice, calculateTotal } = require("../models/invoice.model");
  */
 const INTENT_PATTERNS = {
   HELP: /ayuda|help|qué puedes hacer|cómo funciona|qué se puede hacer/i,
-  START_INVOICE: /^factura|emitir factura|generar factura|crear factura/i,
+  START_INVOICE: /\b(factura|facturar)\b|emitir factura|generar factura|crear factura/i,
   CANCEL: /^cancelar|detener|terminar|abortar/i,
   CONFIRM: /^sí|si|confirmar|aceptar|correcto|dale|ok|okay/i,
   REJECT: /^no|cancelar|negar|rechazar/i,

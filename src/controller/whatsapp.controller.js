@@ -5,7 +5,7 @@
 
 const { processMessage, validateConfirmation } = require("../services/llm.service");
 const { getOrCreateConversation, advanceConversation, saveMessage, deleteConversation } = require("../services/conversation.service");
-const { createInvoice } = require("../services/factus.service");
+const { createInvoice } = require("../factus/factus.service");
 
 /**
  * Procesa un mensaje entrante de WhatsApp

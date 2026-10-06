@@ -10,10 +10,16 @@ let cachedToken = null; // { accessToken, refreshToken, expiresAt }
 const EXPIRY_MARGIN_MS = 60 * 1000;
 
 function getCredentials() {
-  
+  const credentials = {
+    grant_type: "password",
+    client_id: process.env.FACTUS_CLIENT_ID,
+    client_secret: process.env.FACTUS_CLIENT_SECRET,
+    username: process.env.FACTUS_USERNAME,
+    password: process.env.FACTUS_PASSWORD,
+  };
 
   const missing = Object.entries(credentials)
-    .filter(([, value]) => !value)
+    .filter(([key, value]) => key !== "grant_type" && !value)
     .map(([key]) => key);
 
   if (missing.length > 0) {
@@ -26,13 +32,7 @@ function getCredentials() {
 }
 
 async function requestNewToken() {
-  const credentials = {
-    grant_type: "password",
-    client_id: process.env.FACTUS_CLIENT_ID,
-    client_secret: process.env.FACTUS_CLIENT_SECRET,
-    username: process.env.FACTUS_USERNAME,
-    password: process.env.FACTUS_PASSWORD,
-  };
+  const credentials = getCredentials();
   const body = new URLSearchParams(credentials);
 
   const response = await fetch(TOKEN_URL, {

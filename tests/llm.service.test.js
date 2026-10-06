@@ -1,75 +1,95 @@
-/**
- * Tests para el servicio LLM
- */
+// tests/llm.service.test.js
+//
+// Real assertions for the LLM/conversation pipeline using node:test.
+// Run with: npm test
+//
+// These cover the pure, deterministic core of the WhatsApp bot: message
+// interpretation, intent detection, confirmation parsing and the invoice
+// summary. The actual send to Meta is NOT tested here (it needs credentials).
 
-const { processMessage, validateConfirmation, extractInvoiceFromSingleMessage, buildInvoiceSummary, detectIntent } = require("../src/services/llm.service");
-const { validateInvoice, calculateTotal } = require("../src/models/invoice.model");
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
 
-// Test de extracción de datos de un mensaje único
-console.log("\n=== Test: Extracción de datos de mensaje único ===");
+const {
+  processMessage,
+  validateConfirmation,
+  extractInvoiceFromSingleMessage,
+  buildInvoiceSummary,
+  detectIntent,
+} = require("../src/services/llm.service");
 
-const testMessage1 = "Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo.";
-const invoice1 = extractInvoiceFromSingleMessage(testMessage1);
-console.log("Mensaje:", testMessage1);
-console.log("Invoice extraído:", JSON.stringify(invoice1, null, 2));
-console.log("Validación:", validateInvoice(invoice1));
+// --- Single-message extraction ------------------------------------------
 
-const testMessage2 = "Factura a María López, NIT 8001234567, 5 pantalones azules a 120000 cada uno, pago con tarjeta.";
-const invoice2 = extractInvoiceFromSingleMessage(testMessage2);
-console.log("\nMensaje:", testMessage2);
-console.log("Invoice extraído:", JSON.stringify(invoice2, null, 2));
-console.log("Validación:", validateInvoice(invoice2));
+test("extractInvoiceFromSingleMessage parses a complete invoice", () => {
+  const msg =
+    "Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50000 cada una, pagó en efectivo.";
+  const invoice = extractInvoiceFromSingleMessage(msg);
 
-// Test de cálculo de total
-console.log("\n=== Test: Cálculo de total ===");
-console.log("Total invoice1 (19% IVA):", calculateTotal(invoice1, 19));
-console.log("Total invoice2 (19% IVA):", calculateTotal(invoice2, 19));
+  assert.equal(invoice.customer.identification, "1234567890");
+  assert.equal(invoice.customer.name, "Juan Pérez");
+  assert.ok(invoice.items && invoice.items.length >= 1);
+  assert.equal(invoice.items[0].quantity, 2);
+  assert.equal(invoice.items[0].price, 50000);
+  assert.equal(invoice.payment.method, "efectivo");
+});
 
-// Test de resumen de factura
-console.log("\n=== Test: Resumen de factura ===");
-console.log(buildInvoiceSummary(invoice1, calculateTotal(invoice1, 19)));
+// --- Intent detection ----------------------------------------------------
 
-// Test de validación de confirmación
-console.log("\n=== Test: Validación de confirmación ===");
-console.log("Sí:", validateConfirmation("Sí"));
-console.log("si:", validateConfirmation("si"));
-console.log("OK:", validateConfirmation("OK"));
-console.log("No:", validateConfirmation("No"));
-console.log("cancelar:", validateConfirmation("cancelar"));
-console.log("Random:", validateConfirmation("algo aleatorio"));
+test("detectIntent recognizes help, cancel and invoice start", () => {
+  assert.equal(detectIntent("ayuda"), "HELP");
+  assert.equal(detectIntent("help"), "HELP");
+  assert.equal(detectIntent("cancelar"), "CANCEL");
+  assert.equal(detectIntent("factura a Juan"), "START_INVOICE");
+});
 
-// Test de detección de intención
-console.log("\n=== Test: Detección de intención ===");
-console.log("Factura a Juan:", detectIntent("Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo."));
-console.log("ayuda:", detectIntent("ayuda"));
-console.log("help:", detectIntent("help"));
-console.log("cancelar:", detectIntent("cancelar"));
-console.log("sí:", detectIntent("sí, confirmo"));
-console.log("no:", detectIntent("no, cancelo"));
+// --- Confirmation parsing ------------------------------------------------
 
-// Test de procesamiento de mensaje completo
-console.log("\n=== Test: Procesamiento de mensaje completo ===");
+test("validateConfirmation accepts affirmative replies", () => {
+  assert.equal(validateConfirmation("Sí").confirmed, true);
+  assert.equal(validateConfirmation("si").confirmed, true);
+  assert.equal(validateConfirmation("OK").confirmed, true);
+});
 
-async function testMessageProcessing() {
-  // Test 1: Mensaje completo
-  console.log("\n--- Test 1: Mensaje completo ---");
-  const result1 = await processMessage(testMessage1);
-  console.log("Resultado:", JSON.stringify(result1, null, 2));
+test("validateConfirmation detects cancellation", () => {
+  assert.equal(validateConfirmation("No").cancelled, true);
+  assert.equal(validateConfirmation("cancelar").cancelled, true);
+});
 
-  // Test 2: Mensaje incompleto (solo cliente)
-  console.log("\n--- Test 2: Mensaje incompleto ---");
-  const result2 = await processMessage("Factura a Carlos Ruiz, CC 1000000000");
-  console.log("Resultado:", JSON.stringify(result2, null, 2));
+test("validateConfirmation flags unrecognized replies as invalid", () => {
+  assert.equal(validateConfirmation("quizás mañana").invalid, true);
+});
 
-  // Test 3: Ayuda
-  console.log("\n--- Test 3: Ayuda ---");
-  const result3 = await processMessage("ayuda");
-  console.log("Resultado:", JSON.stringify(result3, null, 2));
+// --- Invoice summary -----------------------------------------------------
 
-  // Test 4: Cancelar
-  console.log("\n--- Test 4: Cancelar ---");
-  const result4 = await processMessage("cancelar");
-  console.log("Resultado:", JSON.stringify(result4, null, 2));
-}
+test("buildInvoiceSummary includes customer, product and total", () => {
+  const invoice = {
+    customer: { identification: "1234567890", name: "Juan Pérez" },
+    items: [{ description: "Camiseta negra", quantity: 2, price: 50000 }],
+    payment: { method: "efectivo" },
+  };
+  const summary = buildInvoiceSummary(invoice, 119000);
 
-testMessageProcessing().catch(console.error);
+  assert.match(summary, /Juan Pérez/);
+  assert.match(summary, /1234567890/);
+  assert.match(summary, /Camiseta negra/);
+  assert.match(summary, /119.000/); // locale-formatted total
+});
+
+// --- Full message processing (conversational entry points) ---------------
+
+test("processMessage returns a help response for HELP intent", async () => {
+  const result = await processMessage("ayuda");
+  assert.match(result.response, /factura/i);
+  assert.equal(result.nextStep, "START");
+});
+
+test("processMessage starts the invoice flow on START_INVOICE", async () => {
+  const result = await processMessage("quiero una factura");
+  assert.equal(result.nextStep, "WAITING_FOR_CUSTOMER_ID");
+});
+
+test("processMessage cancels on CANCEL intent", async () => {
+  const result = await processMessage("cancelar");
+  assert.equal(result.cancelled, true);
+  assert.equal(result.nextStep, "START");
+});
