@@ -24,8 +24,6 @@ async function createInvoice(invoice) {
 
   try {
     const response = await post(VALIDATE_PATH, payload);
-
-    // Factus returns invoice data directly under `data`.
     const data = response?.data ?? {};
 
     return {
@@ -38,7 +36,6 @@ async function createInvoice(invoice) {
     };
   } catch (error) {
     if (error instanceof FactusApiError) {
-      // Log the full technical detail internally; never surface it raw.
       console.error(
         `[factus.service] Factus rejected invoice ${payload.reference_code} ` +
           `(HTTP ${error.status}):`,

@@ -135,7 +135,9 @@ async function handleConfirmation(payload) {
           `Número de factura: ${factusResponse.invoiceNumber}\n` +
           `Código de referencia: ${factusResponse.referenceCode}\n` +
           `Total: $${factusResponse.total}\n\n` +
-          `Se ha enviado el PDF a tu correo registrado en Factus.`;
+          (invoice?.customer?.email
+            ? `Se ha enviado el PDF a ${invoice.customer.email}.`
+            : `Se ha enviado el PDF a tu correo registrado en Factus.`);
 
         // Limpiar conversación
         deleteConversation(phoneNumber);

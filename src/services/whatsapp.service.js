@@ -1,86 +1,59 @@
 /**
  * WhatsApp Service
- * Responsibility: send messages to users through the Meta WhatsApp Cloud API.
+ * Responsibility: send messages to users through the WhatsApp_Client
+ * (`whatsapp-web.js`). This is the OUTBOUND channel. The rest of the app decides
+ * WHAT to say; this module knows HOW to deliver it to the linked WhatsApp account.
  *
- * This is the OUTBOUND channel. The rest of the app decides WHAT to say;
- * this module knows HOW to deliver it to Meta.
+ * This replaces the former Meta WhatsApp Cloud API sender: there is no Graph API
+ * `fetch`, no API version constant, and no Meta credential validation. Outbound
+ * delivery now flows through the process-resident client:
  *
- * Meta Cloud API reference:
- *   POST https://graph.facebook.com/{version}/{PHONE_NUMBER_ID}/messages
- *   headers: Authorization: Bearer {ACCESS_TOKEN}, Content-Type: application/json
- *   body: { messaging_product: "whatsapp", to, type: "text", text: { body } }
+ *   sendTextMessage(to, body)
+ *     -> gate on client readiness (Requirement 2.4)
+ *     -> phoneToChatId(to)        (Requirement 5.2)
+ *     -> client.sendMessage(...)  (Requirement 5.1)
+ *
+ * Logging convention: all logs are prefixed `[whatsapp.service]` and an
+ * outbound failure log includes the target Phone_Number (Requirement 5.4).
  */
 
-const API_VERSION = process.env.WHATSAPP_API_VERSION ?? "v21.0";
+const { sendMessage, isReady } = require("../whatsapp/whatsapp.client");
+const { phoneToChatId } = require("../whatsapp/whatsapp.normalize");
 
 /**
- * Reads and validates the WhatsApp credentials from the environment.
- * Fails fast with a clear message if something is missing.
- */
-function getConfig() {
-  const config = {
-    accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
-    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-  };
-
-  const missing = Object.entries(config)
-    .filter(([, value]) => !value)
-    .map(([key]) => key);
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing WhatsApp configuration in environment: ${missing.join(", ")}`
-    );
-  }
-
-  return config;
-}
-
-/**
- * Sends a plain text message to a WhatsApp user.
- * @param {string} to - recipient phone number (as received from the webhook)
+ * Send a plain text message to a WhatsApp user through the WhatsApp_Client.
+ *
+ * Readiness-gated: when the client is not ready (any lifecycle state other than
+ * `ready`), the reply is dropped with a warning and nothing is sent
+ * (Requirement 2.4). Otherwise the digits-only Phone_Number is converted to a
+ * Chat_Id and delegated to the client (Requirements 5.1, 5.2). On send failure
+ * the error is logged with the target Phone_Number and rethrown (Requirement 5.4).
+ *
+ * @param {string} to - recipient digits-only Phone_Number (conversation key)
  * @param {string} body - message text
- * @returns {Promise<object>} the Meta API response
+ * @returns {Promise<object|undefined>} the sent message, or undefined when the
+ *   client is not ready and the reply is dropped
  */
 async function sendTextMessage(to, body) {
-  const { accessToken, phoneNumberId } = getConfig();
-  const url = `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`;
-
-  const payload = {
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to,
-    type: "text",
-    text: { body },
-  };
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const raw = await response.text();
-  let data;
-  try {
-    data = raw ? JSON.parse(raw) : null;
-  } catch {
-    data = raw;
-  }
-
-  if (!response.ok) {
-    // Log the technical detail; the caller decides how to react.
-    console.error(
-      `[whatsapp.service] Failed to send message to ${to} (HTTP ${response.status}):`,
-      JSON.stringify(data)
+  if (!isReady()) {
+    console.warn(
+      `[whatsapp.service] Client not ready; dropping reply to ${to}`
     );
-    throw new Error(`WhatsApp send failed (HTTP ${response.status})`);
+    return;
   }
 
-  return data;
+  const chatId = phoneToChatId(to);
+
+  try {
+    return await sendMessage(chatId, body);
+  } catch (error) {
+    console.error(
+      `[whatsapp.service] Failed to send to ${to}: ${error.message}`
+    );
+    throw error;
+  }
 }
 
-module.exports = { sendTextMessage };
+module.exports = {
+  sendTextMessage,
+};

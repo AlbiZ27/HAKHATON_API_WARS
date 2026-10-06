@@ -1,7 +1,11 @@
 const DEFAULTS = {
+
   numberingRangeId: Number(process.env.FACTUS_NUMBERING_RANGE_ID ?? 8),
+  // tasa de inpuesto del IVA 19%
   taxRate: process.env.FACTUS_DEFAULT_TAX_RATE ?? "19.00",
+  //En este caso se tiene por defecto el 94 correspondiente a precios unitarios o servicios generales
   unitMeasureCode: process.env.FACTUS_DEFAULT_UNIT_MEASURE_CODE ?? "94",
+  //Por defecto: Pago de contado
   paymentForm: process.env.FACTUS_DEFAULT_PAYMENT_FORM ?? "1",
   paymentMethodCode: process.env.FACTUS_DEFAULT_PAYMENT_METHOD_CODE ?? "10",
 };
@@ -45,6 +49,7 @@ function mapItem(item) {
 }
 
 function computeTotal(items) {
+  // 
   const taxMultiplier = 1 + Number(DEFAULTS.taxRate) / 100;
   const subtotal = items.reduce(
     (sum, item) => sum + Number(item.quantity) * Number(item.price),
@@ -72,6 +77,9 @@ function toFactusBill(invoice) {
       identification_document_code: FACTUS_CODES.identificationDocumentCode,
       identification: invoice.customer.identification,
       names: invoice.customer.name,
+      // Correo del cliente, capturado en la conversación. Solo se incluye si
+      // está presente; Factus envía el PDF de la factura a esta dirección.
+      ...(invoice.customer.email ? { email: invoice.customer.email } : {}),
       legal_organization_code: FACTUS_CODES.legalOrganizationCode,
       tribute_code: FACTUS_CODES.tributeCode,
       municipality_code: FACTUS_CODES.municipalityCode,

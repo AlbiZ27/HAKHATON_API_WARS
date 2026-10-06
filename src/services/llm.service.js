@@ -4,6 +4,7 @@
  */
 
 const { validateInvoice, calculateTotal } = require("../models/invoice.model");
+const { extractInvoiceWithGemini, isGeminiConfigured } = require("./gemini.service");
 
 /**
  * Patrones de texto para detectar diferentes intenciones
@@ -14,6 +15,7 @@ const INTENT_PATTERNS = {
   CANCEL: /^cancelar|detener|terminar|abortar/i,
   CONFIRM: /^sí|si|confirmar|aceptar|correcto|dale|ok|okay/i,
   REJECT: /^no|cancelar|negar|rechazar/i,
+  GREETING: /\b(hola|buenas|buenos días|buenas tardes|buenas noches|qué tal|hey|holi|saludos)\b/i,
 };
 
 /**
@@ -36,12 +38,13 @@ function extractCustomerIdentification(text) {
   const patterns = [
     /(?:CC|cedula|cedula de ciudadania)[:\s]*([\d\.\-]+)/i,
     /^([\d\.\-]+)\s*(?:es|es su|es el|es de|documento)$/i,
-    /^\d{7,15}$/ // Cualquier número de 7 a 15 dígitos
+    /^(\d{7,15})$/ // Cualquier número de 7 a 15 dígitos (grupo capturado)
   ];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    if (match) {
+    // Guardar contra patrones sin grupo de captura: solo usar match[1].
+    if (match && match[1]) {
       // Limpiar el número (quitar puntos y guiones)
       const clean = match[1].replace(/[.\-]/g, "");
       if (clean.length >= 7 && clean.length <= 15) {
@@ -52,11 +55,29 @@ function extractCustomerIdentification(text) {
   return null;
 }
 
+/**
+ * Extrae un correo electrónico del texto, si hay uno válido.
+ * Acepta frases como "mi correo es ana@mail.com", "envíalo a x@y.co" o el
+ * correo suelto.
+ * @param {string} text
+ * @returns {string|null} el correo en minúsculas, o null si no hay uno válido
+ */
+function extractEmail(text) {
+  const match = text.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : null;
+}
+
 function extractCustomerName(text) {
   // Buscar patrones como "a Juan Pérez", "nombre: Juan Pérez", "Juan Pérez"
   const patterns = [
-    /(?:a|cliente|nombre de|para|factura a|facturar a)[:\s]*([A-Z][a-zÀ-ÿ]+(?:\s+[A-Z][a-zÀ-ÿ]+)*)/i,
-    /^([A-Z][a-zÀ-ÿ]+(?:\s+[A-Z][a-zÀ-ÿ]+)*)\s*,/i
+    // Nombre suelto al inicio del mensaje (caso conversacional: el usuario
+    // responde solo con el nombre). Debe ir primero para no ser canibalizado
+    // por los prefijos de abajo.
+    /^([A-ZÀ-Ÿ][a-zÀ-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zÀ-ÿ]+)+)\s*$/,
+    // Prefijos como palabras completas (\b + separador explícito) para no
+    // comerse letras internas de un nombre (ej. la "a" de "Carla").
+    /\b(?:cliente|nombre de|factura a|facturar a|para)[:\s]+([A-ZÀ-Ÿ][a-zÀ-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zÀ-ÿ]+)*)/i,
+    /^([A-ZÀ-Ÿ][a-zÀ-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zÀ-ÿ]+)*)\s*,/i
   ];
 
   for (const pattern of patterns) {
@@ -134,7 +155,10 @@ function extractPrice(text) {
   const patterns = [
     /(\d+\.?\d*)\s*(?:pesos|cop|dolares?|\$)?\s*(?:a|costo|precio|cada|unitario)/i,
     /(\d+\.?\d*)\s*(?:a|costo|precio|cada|unitario)\s*(?:pesos|cop|dolares?|\$)?/i,
-    /(\d+)\s*mil\s*(?:pesos|cop|dolares?|\$)?/i
+    /(\d+)\s*mil\s*(?:pesos|cop|dolares?|\$)?/i,
+    // Número suelto (ej: "40000", "40.000", "$50.000"): útil en el paso
+    // conversacional donde ya se preguntó explícitamente el precio.
+    /^\$?\s*(\d{1,3}(?:\.\d{3})+|\d+)\s*(?:pesos|cop)?$/i
   ];
 
   for (const pattern of patterns) {
@@ -178,6 +202,9 @@ function detectIntent(text) {
   if (INTENT_PATTERNS.CANCEL.test(text)) return "CANCEL";
   if (INTENT_PATTERNS.CONFIRM.test(text)) return "CONFIRM";
   if (INTENT_PATTERNS.REJECT.test(text)) return "REJECT";
+  // GREETING va de último (antes de UNKNOWN) para no pisar intenciones más
+  // específicas como START_INVOICE en "hola, quiero una factura".
+  if (INTENT_PATTERNS.GREETING.test(text)) return "GREETING";
   return "UNKNOWN";
 }
 
@@ -248,6 +275,23 @@ function isInvoiceComplete(invoice) {
 async function processMessage(text, conversationState = { currentStep: "START", invoiceData: {} }) {
   const intent = detectIntent(text);
 
+  // Saludo: presentarse y dar contexto de quién es el bot y qué puede hacer.
+  // Solo cuando no estamos en medio de una conversación activa, para no cortar
+  // un flujo en curso si el usuario saluda a mitad de camino.
+  if (
+    intent === "GREETING" &&
+    (!conversationState.currentStep || conversationState.currentStep === "START")
+  ) {
+    return {
+      response:
+        "¡Hola! 👋 Soy el asistente de facturación electrónica de *Factus*.\n\n" +
+        "Puedo ayudarte a generar facturas electrónicas válidas ante la DIAN directamente por WhatsApp.\n\n" +
+        "Para empezar, escribí *factura* y te guío paso a paso, o mandame todos los datos juntos, por ejemplo:\n" +
+        '"Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo."',
+      nextStep: "START"
+    };
+  }
+
   // Si el usuario pide ayuda
   if (intent === "HELP") {
     return {
@@ -285,21 +329,56 @@ async function processMessage(text, conversationState = { currentStep: "START", 
     };
   }
 
-  // Intentar extraer toda la información de un solo mensaje
-  const invoice = extractInvoiceFromSingleMessage(text);
-
-  // Si la información está completa y válida
-  if (isInvoiceComplete(invoice)) {
-    const total = calculateTotal(invoice);
+  // Para una factura completa capturada de un solo mensaje: si falta el correo,
+  // pedirlo antes de confirmar; si ya viene, ir directo al resumen.
+  const toCompletionOrEmail = (built) => {
+    if (!built.customer?.email) {
+      return {
+        response:
+          buildInvoiceSummary(built, calculateTotal(built)) +
+          "\n\nAntes de confirmar, ¿a qué correo electrónico enviamos la factura?",
+        nextStep: "WAITING_FOR_EMAIL",
+        updatedInvoice: built
+      };
+    }
     return {
-      response: buildInvoiceSummary(invoice, total),
+      response: buildInvoiceSummary(built, calculateTotal(built)),
       nextStep: "WAITING_FOR_CONFIRMATION",
-      invoice,
+      invoice: built,
       requiresConfirmation: true
     };
+  };
+
+  // Primera línea: intentar extraer todo con el motor de reglas (regex). Es
+  // instantáneo y resuelve la mayoría de los mensajes bien formados.
+  let invoice = extractInvoiceFromSingleMessage(text);
+  if (invoice.customer) invoice.customer.email = extractEmail(text) ?? null;
+
+  // Si la información está completa y válida, pedir correo (si falta) o confirmar.
+  if (isInvoiceComplete(invoice)) {
+    return toCompletionOrEmail(invoice);
   }
 
-  // Si hay errores, mostrar qué falta
+  // Fallback inteligente: si el regex no logró una factura completa, pedirle a
+  // Gemini que extraiga los datos del lenguaje natural. Gemini nunca lanza: si
+  // falla o excede el timeout devuelve null, y seguimos con el flujo normal.
+  if (isGeminiConfigured()) {
+    const geminiInvoice = await extractInvoiceWithGemini(text);
+    if (geminiInvoice) {
+      // Conservar un correo detectado en el texto si Gemini no lo trajo.
+      if (!geminiInvoice.customer?.email) {
+        const emailInText = extractEmail(text);
+        if (emailInText) geminiInvoice.customer.email = emailInText;
+      }
+      if (isInvoiceComplete(geminiInvoice)) {
+        return toCompletionOrEmail(geminiInvoice);
+      }
+      // Parcial: usar lo de Gemini como base para pedir lo que falta.
+      invoice = geminiInvoice;
+    }
+  }
+
+  // Si (con regex o Gemini) sigue incompleta, mostrar qué falta.
   const validation = validateInvoice(invoice);
   if (!validation.valid) {
     return {
@@ -395,9 +474,26 @@ function processConversationalStep(text, conversationState) {
     case "WAITING_FOR_PAYMENT":
       const paymentMethod = extractPaymentMethod(text);
       if (paymentMethod) {
+        // Tras el pago, pedir el correo al que se enviará la factura antes de
+        // confirmar.
+        return {
+          response: "¿A qué correo electrónico enviamos la factura?",
+          nextStep: "WAITING_FOR_EMAIL",
+          updatedInvoice: { ...invoiceData, payment: { method: paymentMethod } }
+        };
+      }
+      return {
+        response: "Por favor, envíame la forma de pago (efectivo, tarjeta, nequi, etc.)",
+        nextStep: currentStep,
+        invoiceData
+      };
+
+    case "WAITING_FOR_EMAIL":
+      const email = extractEmail(text);
+      if (email) {
         const invoice = {
           ...invoiceData,
-          payment: { method: paymentMethod }
+          customer: { ...invoiceData.customer, email }
         };
         const validation = validateInvoice(invoice);
         if (validation.valid) {
@@ -416,7 +512,7 @@ function processConversationalStep(text, conversationState) {
         };
       }
       return {
-        response: "Por favor, envíame la forma de pago (efectivo, tarjeta, nequi, etc.)",
+        response: "Por favor, envíame un correo electrónico válido (ej: cliente@correo.com)",
         nextStep: currentStep,
         invoiceData
       };
@@ -442,8 +538,9 @@ function buildInvoiceSummary(invoice, total) {
 
   return `*Resumen de la factura:*\n\n` +
     `Cliente: ${invoice.customer.name}\n` +
-    `Documento: ${invoice.customer.identification}\n\n` +
-    `Productos:\n${itemsText}\n\n` +
+    `Documento: ${invoice.customer.identification}\n` +
+    (invoice.customer?.email ? `Correo: ${invoice.customer.email}\n` : "") +
+    `\nProductos:\n${itemsText}\n\n` +
     `Método de pago: ${invoice.payment.method}\n` +
     `Total estimado: $${Math.round(total).toLocaleString()}\n\n` +
     `¿Deseas generar esta factura? (Sí / No)`;

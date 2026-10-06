@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# WhatsApp session store (whatsapp-web.js LocalAuth)
+.wwebjs_auth/
+.wwebjs_cache/
+
 # Environment variables (NEVER commit secrets)
 .env
 .env.*
@@ -14,3 +18,4 @@ npm-debug.log*
 .DS_Store
 
 .vscode/
+.kiro/
