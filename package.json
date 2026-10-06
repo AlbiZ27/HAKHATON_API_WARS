@@ -1,0 +1,25 @@
+{
+  "name": "factus-bot",
+  "version": "1.0.0",
+  "description": "factus-bot es un bot de whatsapp encargado a la facturacion electronica",
+  "homepage": "https://github.com/AlbiZ27/HAKHATON_API_WARS#readme",
+  "bugs": {
+    "url": "https://github.com/AlbiZ27/HAKHATON_API_WARS/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlbiZ27/HAKHATON_API_WARS.git"
+  },
+  "license": "ISC",
+  "author": "Albi Sanchez, Sergio Suarez, Julian Estupiñan",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "express": "^5.2.1",
+    "node": "^22.23.3"
+  }
+}
