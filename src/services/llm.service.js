@@ -286,7 +286,7 @@ async function processMessage(text, conversationState = { currentStep: "START", 
       response:
         "¡Hola! 👋 Soy el asistente de facturación electrónica de *Factus*.\n\n" +
         "Puedo ayudarte a generar facturas electrónicas válidas ante la DIAN directamente por WhatsApp.\n\n" +
-        "Para empezar, escribí *factura* y te guío paso a paso, o mandame todos los datos juntos, por ejemplo:\n" +
+        "Para empezar, escribe: *factura* , y te guío paso a paso, o mandame todos los datos juntos, por ejemplo:\n" +
         '"Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo."',
       nextStep: "START"
     };
