@@ -3,7 +3,7 @@
  * Maneja el estado de las conversaciones con los usuarios
  */
 
-// Almacenamiento temporal de conversaciones (en producción usar una base de datos)
+// Almacenamiento temporal de conversaciones (A futuro se usara una base de datos)
 const conversations = new Map();
 
 /**
@@ -11,6 +11,7 @@ const conversations = new Map();
  * @param {string} phoneNumber - Número de teléfono del usuario (identificador único)
  * @returns {Object} Estado de conversación
  */
+
 function getOrCreateConversation(phoneNumber) {
   if (!conversations.has(phoneNumber)) {
     conversations.set(phoneNumber, {
