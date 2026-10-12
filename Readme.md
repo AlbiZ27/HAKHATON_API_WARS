@@ -2,6 +2,22 @@
 
 **Factus WhatsApp Bot** es una solución de facturación electrónica orientada a pequeños negocios que permite generar facturas electrónicas (DIAN) directamente desde WhatsApp.
 
+## 🤖 Probar el bot (demo para jurados)
+
+El bot está **desplegado y activo**. Para probarlo, escribí por WhatsApp al número:
+
+### 📱 +57 305 460 5903
+
+Un mensaje de ejemplo para empezar:
+
+```
+Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo
+```
+
+> ⏳ **Importante:** el bot está alojado en un servicio gratuito (Render), que **suspende la aplicación tras un rato de inactividad**. Por eso, el **primer mensaje puede tardar hasta ~1 minuto en recibir respuesta** mientras el servicio se reactiva. A partir de ahí responde con normalidad. Si no obtenés respuesta inmediata, esperá un momento y volvé a escribir.
+
+El bot responde con un **enlace de descarga del PDF** de la factura generada en Factus.
+
 ## Descripción
 
 El bot conecta una cuenta de WhatsApp (vía `whatsapp-web.js`) con la API de Factus para que un negocio genere facturas electrónicas conversando por chat, sin aprender sistemas nuevos.
@@ -35,10 +51,12 @@ O escribir `factura` y el bot te guía paso a paso: documento → nombre → pro
 
 En ambos casos el bot:
 1. Interpreta y extrae los datos (reglas + Gemini como respaldo)
-2. Pregunta el correo al que se enviará la factura (si no vino en el mensaje)
+2. Pregunta el correo del cliente (dato del adquiriente de la factura)
 3. Muestra un resumen para confirmación
 4. Genera la factura en Factus al confirmar con "Sí"
-5. Informa el resultado; Factus envía el PDF al correo indicado
+5. Responde con un **enlace de descarga del PDF** de la factura
+
+> **Nota sobre la entrega del PDF:** el PDF se entrega mediante un enlace de descarga servido por la propia aplicación. No se adjunta como archivo porque `whatsapp-web.js` falla al enviar archivos a chats con direccionamiento `@lid` (número enmascarado por privacidad), mientras que el envío de texto —y por tanto el enlace— funciona en todos los casos. El correo del cliente se captura y se envía a Factus como dato del adquiriente; el envío del PDF por correo lo realiza Factus en producción (queda como escalabilidad a futuro).
 
 ## Características
 
@@ -46,11 +64,13 @@ En ambos casos el bot:
 - ✅ Generación de facturas desde WhatsApp
 - ✅ Interpretación por reglas con respaldo de Gemini para lenguaje natural
 - ✅ Saludo con presentación del bot
-- ✅ Captura del correo de destino de la factura
+- ✅ Captura del correo del cliente (adquiriente de la factura)
+- ✅ Entrega del PDF mediante enlace de descarga
 - ✅ Autenticación OAuth2 con Factus
 - ✅ Validación de datos antes de enviar a Factus
 - ✅ Flujo conversacional interactivo
 - ✅ Soporte para Sandbox y producción de Factus
+- ✅ Desplegado en Render (servicio gratuito)
 
 ## Tecnologías
 
@@ -151,6 +171,24 @@ npm test   # node --test
 ```
 
 Incluye tests unitarios, de resiliencia y property-based tests (`fast-check`) sobre el núcleo de normalización del transporte.
+
+## Despliegue en Render
+
+El bot está desplegado como **Web Service** en [Render](https://render.com/) (plan gratuito), lo que lo mantiene corriendo como un proceso permanente que escucha WhatsApp.
+
+Lo que se configuró para el despliegue:
+
+- **Tipo de servicio:** Web Service (proceso continuo, necesario porque el bot mantiene abierta la sesión de WhatsApp; no sirve un entorno serverless).
+- **Build Command:** `npm install` (Puppeteer descarga su Chromium en este paso).
+- **Start Command:** `node src/server.js`.
+- **Variables de entorno:** configuradas en el panel de Render (sección *Environment*), no mediante archivo `.env`. Incluyen las credenciales de Factus, `GEMINI_API_KEY` y `PUBLIC_BASE_URL` (la URL pública que asigna Render, usada para construir los enlaces de descarga del PDF).
+- **Chromium/Puppeteer:** `whatsapp-web.js` corre Chromium headless con los flags `--no-sandbox --disable-setuid-sandbox`, requeridos en entornos contenerizados.
+- **Vinculación de WhatsApp:** el QR del primer arranque se escanea leyéndolo desde los **logs** del servicio en Render.
+
+### Limitaciones del plan gratuito
+
+- ⏳ **Suspensión por inactividad:** Render apaga el servicio tras un período sin tráfico y lo reactiva al llegar una nueva petición. Esto provoca un **retraso notable (hasta ~1 minuto) en la primera interacción** tras un rato inactivo. Es el motivo del delay mencionado en la sección de demo.
+- La sesión de WhatsApp puede requerir re-vinculación (re-escanear el QR) si el contenedor se reinicia, al no contar con disco persistente en el plan gratuito.
 
 ## API de Factus
 
