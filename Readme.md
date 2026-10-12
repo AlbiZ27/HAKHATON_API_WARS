@@ -1,104 +1,172 @@
 <div align="center">
-# 🧾 Factus WhatsApp Bot
- 
-### Facturación electrónica (DIAN) desde WhatsApp, conversando por chat
- 
-Sin ERP, sin apps complejas, sin curva de aprendizaje.<br/>
-**Si sabes usar WhatsApp, sabes facturar.**
- 
-![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20.6-339933?logo=node.js&logoColor=white)
-![WhatsApp](https://img.shields.io/badge/WhatsApp-whatsapp--web.js-25D366?logo=whatsapp&logoColor=white)
-![Factus](https://img.shields.io/badge/Factus-API-0A66C2)
-![Gemini](https://img.shields.io/badge/IA-Google%20Gemini-8E75B2?logo=googlegemini&logoColor=white)
-![Deploy](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-node%20--test%20%2B%20fast--check-informational)
-![License](https://img.shields.io/badge/License-ISC-blue)
- 
-[**Probar la demo**](#-prueba-el-bot-demo-para-jurados) ·
-[**Cómo funciona**](#-cómo-funciona) ·
-[**Decisiones técnicas**](#-decisiones-técnicas) ·
-[**Instalación**](#-instalación-local) ·
-[**Roadmap**](#-roadmap)
- 
+
+<h1>🧾 Factus WhatsApp Bot</h1>
+
+<p><strong>Facturación electrónica (DIAN) directamente desde WhatsApp.</strong></p>
+
+<p><em>Genera facturas electrónicas conversando por chat — sin ERP, sin apps complejas, sin aprender nada nuevo.</em></p>
+
+<p>
+  <img src="https://img.shields.io/badge/Node.js-%3E%3D20.6-339933?logo=node.js&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/WhatsApp-whatsapp--web.js-25D366?logo=whatsapp&logoColor=white" alt="WhatsApp">
+  <img src="https://img.shields.io/badge/Factus-API-0A66C2" alt="Factus">
+  <img src="https://img.shields.io/badge/IA-Google%20Gemini-8E75B2?logo=googlegemini&logoColor=white" alt="Gemini">
+  <img src="https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white" alt="Render">
+  <img src="https://img.shields.io/badge/Tests-node%20--test%20%2B%20fast--check-informational" alt="Tests">
+  <img src="https://img.shields.io/badge/License-ISC-blue" alt="License">
+</p>
+
 </div>
+
 ---
- 
-## 🎯 El problema y la solución
- 
-Facturar electrónicamente en Colombia exige software, certificados y conocimiento técnico que muchos pequeños negocios no tienen. Terminan facturando a mano, tarde o directamente sin facturar.
- 
-**Factus WhatsApp Bot** lleva esa tarea a la herramienta que ya usan todo el día. El comerciante escribe la venta en una frase; el bot **la interpreta, la valida, pide confirmación y emite la factura** en Factus, devolviendo el PDF listo para descargar.
- 
----
- 
-## 📱 Prueba el bot (demo para jurados)
- 
-El bot está **desplegado y activo**. No necesitas instalar nada: escríbele por WhatsApp.
- 
+
+## 📱 Probar el bot (demo para jurados)
+
+> **El bot está desplegado y activo.** No necesitas instalar nada: solo escríbele por WhatsApp.
+
 <div align="center">
-### 📞 +57 305 460 5903
+
+<h3>Escríbele al número</h3>
+
+<h2>📞 +57 305 460 5903</h2>
+
+</div>
  
 </div>
-Envía `hola` para que se presente, o pega directamente este mensaje:
+**Mensaje de ejemplo para empezar:**
  
 ```
 Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo
 ```
  
-**Así se ve una conversación** *(ejemplo ilustrativo; el texto exacto del bot puede variar)*:
+El bot interpreta el mensaje, te pide confirmación y responde con un **enlace de descarga del PDF** de la factura generada en Factus.
  
-```
-👤  Factura a Juan Pérez, CC 1234567890, 2 camisetas negras
-    a 50.000 cada una, pagó en efectivo
- 
-🤖  Casi listo. ¿Cuál es el correo del cliente?
- 
-👤  juan@correo.com
- 
-🤖  📋 Resumen de la factura
-    • Cliente: Juan Pérez · CC 1234567890
-    • 2 × Camiseta negra · $50.000 c/u
-    • Pago: efectivo
-    ¿Confirmas? (Sí / No)
- 
-👤  Sí
- 
-🤖  ✅ Factura generada. Descarga el PDF aquí: https://…
-```
- 
-> ### ⏳ Léelo antes de probar
+> ### ⏳ Lee esto antes de probar
 >
-> El bot corre en el plan **gratuito de Render**, que **suspende la app tras un rato de inactividad**.
+> El bot está alojado en un **servicio gratuito (Render)** que **suspende la aplicación tras un rato de inactividad**. Esto implica:
 >
-> - 🕐 **El primer mensaje puede tardar hasta ~1 minuto.** Si no responde, espera y vuelve a escribir: el bot está despertando, **no está caído**.
-> - 🧠 **No hay memoria persistente.** Conversaciones y facturas viven en memoria; si el servicio se suspende o reinicia, pierdes el progreso en curso y debes empezar de nuevo con `factura`. Es una decisión consciente del MVP (ver [Roadmap](#-roadmap)).
-> - 📲 Escríbele **desde otro número**: los mensajes propios y los de grupos se ignoran.
-> - 🧪 Las facturas se generan en el **ambiente Sandbox** de Factus.
+> - 🕐 **El primer mensaje puede tardar hasta ~1 minuto** en recibir respuesta mientras el servicio se reactiva. Si no responde de inmediato, espera un momento y vuelve a escribir — **el bot está despertando, no está caído.**
+> - 🧠 **El bot no tiene memoria persistente.** El estado de cada conversación y las facturas generadas se guardan **en memoria**, no en una base de datos. Si el servicio se suspende o reinicia, **se pierde el progreso de las conversaciones en curso** (habría que empezar de nuevo con `factura`). Esto es una decisión consciente para el MVP; la persistencia en base de datos queda como mejora a futuro.
+> - 📲 **Escríbele desde otro número:** los mensajes propios y los de grupos se ignoran.
  
-<!-- 📸 Agrega aquí capturas de pantalla de la conversación y del PDF generado:
+### 🎬 Guía rápida de la demo
+ 
+**Recorrido recomendado (≈ 2 minutos):**
+ 
+| Paso | Qué hacer | Qué debería pasar |
+|:---:|---|---|
+| 1️⃣ | Guarda el número y envía `hola` | El bot se presenta y explica qué puede hacer *(si es el primer mensaje, puede tardar ~1 min)* |
+| 2️⃣ | Envía el mensaje de ejemplo (o uno propio) | El bot interpreta cliente, documento, productos, precios y forma de pago |
+| 3️⃣ | Responde lo que falte (p. ej. el **correo** del cliente) | El bot completa los datos de la factura |
+| 4️⃣ | Revisa el **resumen** y responde `Sí` | El bot genera la factura en **Factus** |
+| 5️⃣ | Abre el enlace recibido | Descargas el **PDF** de la factura |
+ 
+**Otras formas de probarlo:**
+ 
+- 🧭 **Modo guiado:** escribe solo `factura` y el bot te pregunta dato por dato (documento → nombre → productos → precio → forma de pago → correo → confirmación).
+- 🧠 **Lenguaje libre:** escribe la venta con tus propias palabras. Si el motor de reglas no la entiende, entra **Gemini** como respaldo. Por ejemplo:
+```
+  Factura para María López, cédula 52123456, compró 3 cuadernos a 8.000 y un lapicero a 2.000, pagó con tarjeta
+```
+ 
+**Qué demuestra la demo:**
+ 
+| Capacidad | Dónde se ve |
+|---|---|
+| Integración real con WhatsApp | Respuestas del bot en el chat |
+| Interpretación híbrida (reglas + Gemini) | Extracción de datos desde texto libre |
+| Validación y confirmación previa | Resumen antes de emitir |
+| Integración con la API de Factus (OAuth2) | Factura generada y PDF descargable |
+ 
+> 🧪 Si el despliegue apunta al **Sandbox de Factus** (`FACTUS_BASE_URL`), las facturas son de prueba y no tienen validez fiscal.
+ 
+<!-- 📸 Agrega aquí capturas de la conversación y del PDF generado:
      ![Conversación](docs/conversacion.png)
      ![Factura](docs/factura.png) -->
  
 ---
  
-## ✨ Características
+## 📑 Contenido
  
-| | |
-|---|---|
-| 💬 **Conversacional** | Factura en una sola frase o guiada paso a paso |
-| 🧠 **Interpretación híbrida** | Motor de reglas rápido + Google Gemini como respaldo para lenguaje libre |
-| ✅ **Validación previa** | Verifica los datos antes de enviarlos a Factus |
-| 🧾 **Confirmación explícita** | Muestra un resumen y solo emite al responder *"Sí"* |
-| 📧 **Datos del adquiriente** | Captura el correo del cliente y lo envía a Factus |
-| 📎 **PDF al instante** | Entrega un enlace de descarga de la factura |
-| 🔐 **OAuth2 con Factus** | Autenticación gestionada por la integración |
-| 🌗 **Sandbox y producción** | Cambia de ambiente con una variable de entorno |
+- [¿Qué hace?](#-qué-hace)
+- [Cómo funciona el transporte](#-cómo-funciona-el-transporte)
+- [Ejemplo de uso](#-ejemplo-de-uso)
+- [Características](#-características)
+- [Tecnologías](#-tecnologías)
+- [Estructura del proyecto](#-estructura-del-proyecto)
+- [Instalación local](#-instalación-local)
+- [Configuración](#-configuración)
+- [Primer arranque (vincular WhatsApp)](#-primer-arranque-vincular-whatsapp)
+- [Pruebas](#-pruebas)
+- [Despliegue en Render](#-despliegue-en-render)
+- [Solución de problemas](#-solución-de-problemas)
+- [Roadmap](#-roadmap)
+- [API de Factus](#-api-de-factus)
+- [Autores](#-autores)
+---
+ 
+## 💡 ¿Qué hace?
+ 
+**Factus WhatsApp Bot** conecta una cuenta de WhatsApp con la API de **Factus** para que un pequeño negocio genere facturas electrónicas simplemente conversando por chat.
+ 
+El usuario manda los datos de la venta por WhatsApp; el sistema los **interpreta**, los **valida**, construye la factura y la **envía a Factus**. La interpretación usa un **motor de reglas** rápido y, cuando el mensaje llega en lenguaje natural libre, recurre a **Google Gemini** como respaldo.
+ 
+> 🎯 **Objetivo:** eliminar la barrera tecnológica de la facturación electrónica. Si sabes usar WhatsApp, sabes facturar.
+ 
+**¿Por qué WhatsApp?** Es la herramienta que los pequeños comerciantes ya usan todos los días: no hay nada que instalar, configurar ni aprender.
  
 ---
  
-## ⚙️ Cómo funciona
+## 🔌 Cómo funciona el transporte
  
-### Flujo de una factura
+A diferencia de una integración con la Meta Cloud API (webhooks HTTP), este bot usa [`whatsapp-web.js`](https://wwebjs.dev/), que controla WhatsApp Web mediante un Chromium headless (Puppeteer):
+ 
+- 🔑 **Autenticación por código QR:** en el primer arranque el bot muestra un QR que se escanea desde *WhatsApp → Dispositivos vinculados*.
+- 📨 Los mensajes entrantes llegan por **eventos** del cliente; las respuestas salen por el mismo cliente.
+- 🚫 **No** usa tokens de la Meta Cloud API.
+```mermaid
+flowchart LR
+    WA([WhatsApp]) <--> CL["whatsapp-web.js<br/>Chromium headless"]
+    CL --> HD[Handler] --> BF["Business flow<br/>controller"]
+    BF --> RU[Reglas] -. respaldo .-> GM[Gemini]
+    BF <--> ST[("Estado<br/>en memoria")]
+    BF --> FA["Factus API<br/>OAuth2"]
+    FA --> PS[PDF store] --> EX["Express<br/>enlace de descarga"]
+```
+ 
+> ⚠️ **Sobre la sesión:** la librería puede persistir la sesión en disco (`LocalAuth`). Sin embargo, en el despliegue actual (Render, plan gratuito **sin disco persistente**) la sesión **no sobrevive** a los reinicios del contenedor, por lo que puede requerir re-vincular el QR. Ver [Limitaciones del plan gratuito](#limitaciones-del-plan-gratuito).
+ 
+---
+ 
+## 💬 Ejemplo de uso
+ 
+**Saluda al bot:**
+ 
+```
+hola
+```
+ 
+El bot se presenta y te explica qué puede hacer. Luego puedes mandar **todo junto**:
+ 
+```
+Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo
+```
+ 
+…o escribir `factura` y dejar que el bot te **guíe paso a paso**:
+ 
+```
+documento → nombre → productos → precio → forma de pago → correo → confirmación
+```
+ 
+En ambos casos, el bot:
+ 
+| Paso | Acción |
+|:---:|---|
+| 1️⃣ | Interpreta y extrae los datos (reglas + Gemini como respaldo) |
+| 2️⃣ | Pide el correo del cliente (dato del adquiriente de la factura) |
+| 3️⃣ | Muestra un **resumen** para que confirmes |
+| 4️⃣ | Genera la factura en **Factus** al confirmar con *"Sí"* |
+| 5️⃣ | Responde con un **enlace de descarga del PDF** |
  
 ```mermaid
 sequenceDiagram
@@ -113,59 +181,41 @@ sequenceDiagram
         B->>G: Extracción con IA (respaldo)
         G-->>B: Datos estructurados
     end
-    B-->>U: Pide lo que falta (p. ej. correo)
-    B-->>U: Resumen y "¿Confirmas?"
+    B-->>U: Pide lo que falta (p. ej. correo) y muestra el resumen
     U->>B: "Sí"
     B->>F: Autenticación OAuth2 + crear factura
-    F-->>B: Factura validada + PDF
+    F-->>B: Factura + PDF
     B-->>U: Enlace de descarga del PDF
 ```
  
-### Modo guiado
- 
-Si escribes solo `factura`, el bot te lleva por una máquina de estados:
- 
-```mermaid
-flowchart LR
-    A[Documento] --> B[Nombre] --> C[Productos] --> D[Precio] --> E[Forma de pago] --> F[Correo] --> G{Confirmación}
-    G -- Sí --> H[Factura en Factus]
-    G -- No --> A
-```
- 
-### Arquitectura
- 
-```mermaid
-flowchart LR
-    WA([WhatsApp]) <--> CL["whatsapp-web.js<br/>Chromium headless"]
-    CL --> HD[Handler] --> BF["Business flow<br/>controller"]
-    BF --> RU[Reglas] -. respaldo .-> GM[Gemini]
-    BF <--> ST[("Estado<br/>en memoria")]
-    BF --> FA["Factus API<br/>OAuth2"]
-    FA --> PS[PDF store]
-    PS --> EX["Express<br/>enlace de descarga"]
-```
+> 📎 **Sobre la entrega del PDF:** el PDF se entrega mediante un **enlace de descarga** servido por la propia aplicación, **no** como archivo adjunto. Esto es porque `whatsapp-web.js` falla al enviar archivos a chats con direccionamiento `@lid` (número enmascarado por privacidad de WhatsApp), mientras que el envío de texto —y por tanto el enlace— funciona en todos los casos. El correo del cliente se captura y se envía a Factus como dato del adquiriente; el **envío del PDF por correo lo realiza Factus en producción** (queda como escalabilidad a futuro).
  
 ---
  
-## 🧭 Decisiones técnicas
+## ✨ Características
  
-| Decisión | Por qué |
-|---|---|
-| **`whatsapp-web.js` en vez de la Meta Cloud API** | Permite usar un número normal con vinculación por QR, sin aprobación de Meta ni plantillas: ideal para validar el producto rápido. Controla WhatsApp Web con Chromium headless (Puppeteer). |
-| **Reglas primero, Gemini de respaldo** | Las reglas resuelven los casos comunes al instante y sin costo; la IA solo entra cuando el mensaje es lenguaje natural libre, con timeout configurable. |
-| **PDF por enlace, no como adjunto** | `whatsapp-web.js` falla al enviar archivos a chats con direccionamiento `@lid` (número enmascarado por WhatsApp). El texto funciona siempre, así que el enlace es fiable en todos los casos. |
-| **Estado en memoria** | Simplifica el MVP. La persistencia en base de datos está planificada. |
-| **Proceso permanente (no *serverless*)** | El bot mantiene abierta la sesión de WhatsApp, por lo que necesita un servicio siempre activo. |
-| **Correo capturado, envío a cargo de Factus** | El correo se manda a Factus como dato del adquiriente; en producción es Factus quien envía el PDF por email. |
- 
+- ✅ Transporte vía `whatsapp-web.js` (autenticación por QR)
+- ✅ Generación de facturas electrónicas desde WhatsApp
+- ✅ Interpretación por reglas con **respaldo de Gemini** para lenguaje natural
+- ✅ Saludo con presentación del bot
+- ✅ Captura del correo del cliente (adquiriente de la factura)
+- ✅ Entrega del PDF mediante **enlace de descarga**
+- ✅ Autenticación **OAuth2** con Factus
+- ✅ Validación de datos antes de enviar a Factus
+- ✅ Confirmación explícita con resumen antes de emitir la factura
+- ✅ Flujo conversacional interactivo (máquina de estados)
+- ✅ Ignora mensajes propios y de grupos
+- ✅ Soporte para **Sandbox** y **producción** de Factus
+- ✅ Desplegado en **Render** (servicio gratuito)
 ---
  
 ## 🛠 Tecnologías
  
 | Componente | Tecnología |
 |---|---|
-| Lenguaje / runtime | JavaScript (CommonJS) · Node.js ≥ 20.6 |
-| HTTP | Express (`/health` y descarga de PDF) |
+| Lenguaje | JavaScript (CommonJS) |
+| Runtime | Node.js (>=20.6.0) |
+| HTTP | Express (endpoints `/health` y descarga de PDF) |
 | WhatsApp | `whatsapp-web.js` + `qrcode-terminal` (Puppeteer/Chromium) |
 | IA (respaldo) | Google Gemini API |
 | Facturación | Factus API |
@@ -179,132 +229,158 @@ flowchart LR
 ```
 src/
 ├── controller/
-│   └── whatsapp.controller.js   # Business_Flow: orquesta la conversación
+│   └── whatsapp.controller.js   # Business_Flow: receiveMessage (orquesta la conversación)
 ├── factus/                      # Integración con Factus (auth, client, service, mapper)
 ├── models/                      # Modelo interno de factura y validación
 ├── services/
 │   ├── conversation.service.js  # Estado de la conversación (en memoria)
 │   ├── llm.service.js           # Interpretación por reglas + respaldo Gemini
-│   ├── gemini.service.js        # Cliente de la API de Gemini
-│   ├── pdf-store.service.js     # Guarda el PDF en memoria y expone el enlace
-│   └── whatsapp.service.js      # Envío de mensajes (outbound)
+│   ├── gemini.service.js        # Cliente de la API de Gemini (fallback de extracción)
+│   ├── pdf-store.service.js     # Almacena el PDF en memoria y expone un enlace de descarga
+│   └── whatsapp.service.js      # Envío de mensajes (outbound) vía el cliente
 ├── whatsapp/
 │   ├── whatsapp.client.js       # Cliente whatsapp-web.js: ciclo de vida y envío
-│   ├── whatsapp.handler.js      # Normaliza el mensaje entrante y despacha
+│   ├── whatsapp.handler.js      # Normaliza el mensaje entrante y despacha la respuesta
 │   └── whatsapp.normalize.js    # Helpers puros: filtrado y normalización de IDs
 ├── app.js                       # Express: /health + descarga del PDF
-└── server.js                    # Punto de entrada
+└── server.js                    # Punto de entrada: inicializa el cliente y escucha
 ```
  
 ---
  
 ## 💻 Instalación local
  
-**Requisitos:** Node.js ≥ 20.6 · credenciales de Factus (el Sandbox sirve) · API key de Gemini *(opcional pero recomendada)*.
+**Requisitos:** Node.js ≥ 20.6, credenciales de Factus (el Sandbox sirve) y, opcionalmente, una API key de Gemini.
  
 ```bash
+# Clonar el repositorio
 git clone https://github.com/AlbiZ27/HAKHATON_API_WARS.git
 cd HAKHATON_API_WARS
+ 
+# Instalar dependencias
 npm install
-cp .env.example .env    # completa las credenciales
-npm start               # muestra el QR en la terminal la primera vez
+ 
+# Crear el .env a partir del ejemplo y completar credenciales
+cp .env.example .env
+ 
+# Iniciar el bot (muestra el QR en la terminal la primera vez)
+npm start
 ```
  
-### Configuración
+---
  
-| Variable | Descripción | Requerida |
-|---|---|:---:|
-| `FACTUS_USERNAME` · `FACTUS_PASSWORD` | Usuario de Factus | ✅ |
-| `FACTUS_CLIENT_ID` · `FACTUS_CLIENT_SECRET` | Credenciales OAuth2 | ✅ |
-| `FACTUS_BASE_URL` | `https://api-sandbox.factus.com.co` para Sandbox | ✅ |
-| `PUBLIC_BASE_URL` | URL pública para los enlaces de PDF. Local: `http://localhost:3000`; Render: la URL del servicio | ✅ |
-| `GEMINI_API_KEY` | Respaldo de interpretación con IA | Recomendada |
-| `GEMINI_MODEL` | Modelo de Gemini a usar | — |
-| `GEMINI_TIMEOUT_MS` | Timeout de Gemini en ms (ej. `8000`) | — |
-| `WHATSAPP_SESSION_PATH` | Carpeta de la sesión (`./.wwebjs_auth`) | — |
-| `WHATSAPP_CLIENT_ID` | ID del cliente (`factus-bot`) | — |
-| `PORT` | Puerto del servidor (`3000`) | — |
+## ⚙️ Configuración
  
-> ⚠️ `.env` está en `.gitignore`. **Nunca subas credenciales**; usa `.env.example` como plantilla pública.
+Copia `.env.example` a `.env` y completa los valores. Variables principales:
  
-### Vincular WhatsApp (primer arranque)
+```env
+# Factus (requeridas)
+FACTUS_USERNAME=...
+FACTUS_PASSWORD=...
+FACTUS_CLIENT_ID=...
+FACTUS_CLIENT_SECRET=...
+FACTUS_BASE_URL=https://api-sandbox.factus.com.co   # Sandbox; cambia a la URL de producción al salir en vivo
  
-1. Ejecuta `npm start`.
-2. Espera `[whatsapp.client] lifecycle -> qr_pending` y el **QR** en la terminal.
+# WhatsApp (whatsapp-web.js) — opcionales, con valores por defecto
+WHATSAPP_SESSION_PATH=./.wwebjs_auth   # carpeta donde se guarda la sesión
+WHATSAPP_CLIENT_ID=factus-bot          # identificador de la sesión
+ 
+# Gemini (respaldo de interpretación en lenguaje natural)
+GEMINI_API_KEY=...
+# Opcionales:
+# GEMINI_MODEL=gemini-3.5-flash-lite
+# GEMINI_TIMEOUT_MS=8000               # tiempo máximo de espera de Gemini
+ 
+# Servidor
+PORT=3000
+# URL pública para construir los enlaces de descarga del PDF
+# (en local: http://localhost:3000 ; en Render: la URL del servicio)
+PUBLIC_BASE_URL=http://localhost:3000
+```
+ 
+> ⚠️ El `.env` está en `.gitignore`. **Nunca se commitean credenciales.** Usa `.env.example` como plantilla pública.
+ 
+---
+ 
+## 🔗 Primer arranque (vincular WhatsApp)
+ 
+1. `npm start`
+2. Espera a ver `[whatsapp.client] lifecycle -> qr_pending` y el **QR en la terminal**.
 3. En el teléfono: *WhatsApp → Dispositivos vinculados → Vincular un dispositivo* y escanea el QR.
-4. Cuando veas `lifecycle -> ready`, el bot está conectado.
-5. Escríbele desde **otro número**.
-Comprueba el estado del servicio con `curl http://localhost:3000/health`.
+4. Cuando veas `lifecycle -> ready`, el bot está **conectado**.
+5. Escríbele al bot **desde otro número** (los mensajes propios y de grupos se ignoran).
+> Verifica el estado del servicio con `curl http://localhost:3000/health`.
  
 ---
  
 ## 🧪 Pruebas
  
 ```bash
-npm test
+npm test   # node --test
 ```
  
-Incluye pruebas unitarias, de resiliencia y **property-based** (`fast-check`) sobre la normalización del transporte y la descarga del PDF.
+Incluye tests unitarios, de resiliencia y **property-based tests** (`fast-check`) sobre el núcleo de normalización del transporte y la descarga del PDF.
  
 ---
  
 ## ☁️ Despliegue en Render
  
-Desplegado como **Web Service** (plan gratuito).
+El bot está desplegado como **Web Service** en [Render](https://render.com/) (plan gratuito), lo que lo mantiene corriendo como un **proceso permanente** que escucha WhatsApp.
  
-| Aspecto | Configuración |
-|---|---|
-| Entorno | Docker (soporte nativo de Chromium/Puppeteer) |
-| Build · Start | `npm install` · `node src/server.js` |
-| Variables | Panel *Environment* de Render (no se usa `.env`); incluye `PUBLIC_BASE_URL` |
-| Chromium | Headless con `--no-sandbox --disable-setuid-sandbox` (requerido en contenedores) |
-| Vinculación | El QR del primer arranque se escanea desde los **logs** de Render |
+**Lo que se configuró:**
  
-**Limitaciones del plan gratuito**
+- **Tipo de servicio:** Web Service (proceso continuo — el bot mantiene abierta la sesión de WhatsApp, por lo que un entorno *serverless* no sirve).
+- **Entorno:** Docker, para dar soporte nativo a Chromium/Puppeteer.
+- **Build:** `npm install` (Puppeteer prepara su Chromium).
+- **Start:** `node src/server.js`.
+- **Variables de entorno:** se configuran en el panel de Render (*Environment*), **no** con un archivo `.env`. Incluyen las credenciales de Factus, `GEMINI_API_KEY` y `PUBLIC_BASE_URL` (la URL pública que asigna Render, usada para construir los enlaces de descarga del PDF).
+- **Chromium/Puppeteer:** se ejecuta headless con los flags `--no-sandbox --disable-setuid-sandbox`, requeridos en entornos contenerizados.
+- **Vinculación de WhatsApp:** el QR del primer arranque se escanea **leyéndolo desde los logs** del servicio en Render.
+### Limitaciones del plan gratuito
  
-- ⏳ **Suspensión por inactividad:** el servicio se apaga sin tráfico y se reactiva con la siguiente petición (de ahí el retraso de ~1 min).
-- 🧠 **Sin persistencia:** conversaciones, facturas y sesión de WhatsApp se pierden al reiniciar; puede ser necesario re-escanear el QR.
+- ⏳ **Suspensión por inactividad:** Render apaga el servicio tras un período sin tráfico y lo reactiva al llegar una nueva petición → de ahí el **retraso de hasta ~1 minuto** en la primera interacción.
+- 🧠 **Sin memoria persistente:** el estado de las conversaciones y las facturas viven **en memoria**. Un reinicio o suspensión **borra ese estado** (y puede requerir re-escanear el QR, al no haber disco persistente). La persistencia en base de datos queda como mejora futura.
 ---
  
 ## 🩺 Solución de problemas
  
-<details>
-<summary><b>Ver síntomas frecuentes y cómo resolverlos</b></summary>
-<br/>
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
-| El bot no responde | Servicio suspendido en Render | Espera ~1 min y reenvía el mensaje |
-| Te pide empezar de nuevo | Estado en memoria perdido por reinicio | Escribe `factura` |
-| No aparece el QR o la sesión se cayó | Sesión no persistida | Revisa los logs y vuelve a escanear |
-| No responde a tus propios mensajes | Los mensajes propios se ignoran | Escribe desde otro número |
+| El bot no responde | Servicio suspendido en Render | Espera ~1 minuto y reenvía el mensaje |
+| Te pide empezar de nuevo | Estado en memoria perdido por un reinicio | Escribe `factura` |
+| No responde a tus propios mensajes | Los mensajes propios y de grupos se ignoran | Escribe desde otro número |
+| No aparece el QR o la sesión se cayó | Sesión no persistida (sin disco persistente) | Revisa los logs y vuelve a escanear el QR |
 | Error de autenticación con Factus | Credenciales o `FACTUS_BASE_URL` incorrectos | Revisa las variables de entorno |
 | El enlace del PDF no abre | `PUBLIC_BASE_URL` mal configurada, o PDF perdido tras un reinicio | Corrige la URL o genera la factura de nuevo |
  
-</details>
 ---
  
 ## 🗺 Roadmap
  
-- [ ] Persistencia en base de datos (conversaciones, facturas y sesión)
+- [ ] Persistencia en base de datos (conversaciones, facturas y sesión de WhatsApp)
 - [ ] Envío del PDF por correo al cliente (Factus en producción)
-- [ ] Migración a la Meta Cloud API para mayor estabilidad
-- [ ] Multiusuario / multiempresa
-- [ ] Notas crédito y consulta de facturas emitidas
+- [ ] Disco persistente o plan de pago para evitar suspensiones y re-vincular el QR
+- [ ] Evaluar la Meta Cloud API para mayor estabilidad
+- [ ] Soporte multiusuario / multiempresa
 ---
  
-## 📚 Recursos
+## 📚 API de Factus
  
-- [Documentación de la API de Factus](https://developers.factus.com.co/)
-- [whatsapp-web.js](https://wwebjs.dev/)
+Documentación oficial: https://developers.factus.com.co/
+ 
 ---
  
 ## 👥 Autores
  
-| | |
-|---|---|
-| **Albi Sánchez** | **Sergio Suárez** · **Julián Estupiñán** |
- 
+- **Albi Sánchez**
+- **Sergio Suárez**
+- **Julián Estupiñán**
 ---
+ 
+## 📄 Licencia
+ 
+Distribuido bajo licencia **ISC**.
+
  
 <div align="center">
 Distribuido bajo licencia **ISC**.
