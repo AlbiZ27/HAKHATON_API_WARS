@@ -34,10 +34,20 @@ let lifecycleState = "uninitialized";
 const CLIENT_ID = process.env.WHATSAPP_CLIENT_ID || "factus-bot";
 const SESSION_PATH = process.env.WHATSAPP_SESSION_PATH || "./.wwebjs_auth";
 
+// Resolve the Chromium executable. whatsapp-web.js depends on puppeteer-core,
+// which does not download a browser on its own, so the launch must point at an
+// existing Chrome/Chromium binary. Prefer PUPPETEER_EXECUTABLE_PATH (set per
+// environment: local, Docker, Render); fall back to the common system Chrome
+// path on Debian/Ubuntu images. Leaving this undefined makes Puppeteer resolve
+// against its cache directory, which is brittle across machines.
+const CHROME_EXECUTABLE_PATH =
+  process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome-stable";
+
 // Puppeteer launch flags for a headless Chromium (Requirement 7.3). The sandbox
 // flags are required to run under many containerized/root environments.
 const PUPPETEER_OPTIONS = {
   headless: true,
+  executablePath: CHROME_EXECUTABLE_PATH,
   args: [ 
         '--no-sandbox',
         '--disable-setuid-sandbox',

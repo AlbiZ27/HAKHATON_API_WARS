@@ -17,7 +17,7 @@ RUN npm install
 COPY . .
 
 # Exponer el puerto que usa tu servidor en Render (10000)
-EXPOSE 3000
+EXPOSE 10000
 
 # Comando para iniciar tu bot
 CMD ["node", "src/server.js"]
