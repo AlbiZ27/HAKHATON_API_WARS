@@ -15,7 +15,7 @@
  *
  * Logging convention: every transition logs one line prefixed `[whatsapp.client]`.
  */
-
+const path = require('path');
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
 
