@@ -39,7 +39,15 @@ const SESSION_PATH = process.env.WHATSAPP_SESSION_PATH || "./.wwebjs_auth";
 // flags are required to run under many containerized/root environments.
 const PUPPETEER_OPTIONS = {
   headless: true,
-  args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  args: [ 
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process', // Ayuda a reducir el consumo de memoria en Render
+        '--disable-gpu'],
 };
 
 // --- Internal helpers --------------------------------------------------------
