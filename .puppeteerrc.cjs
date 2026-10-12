@@ -1,9 +1,11 @@
-const { join } = require('path');
-
 /**
  * @type {import("puppeteer").Configuration}
  */
 module.exports = {
-  // Indica a Puppeteer que descargue el navegador dentro de tu proyecto
-  cacheDirectory: join(__dirname, '.cache', 'puppeteer'),
+  // The base Docker image (ghcr.io/puppeteer/puppeteer) already ships a Chrome
+  // binary, and whatsapp-web.js is pointed at it via PUPPETEER_EXECUTABLE_PATH.
+  // whatsapp-web.js depends on the full `puppeteer` package, which would
+  // otherwise download its own Chrome on install, bloating the image and
+  // introducing a mismatched browser version.
+  skipDownload: true,
 };

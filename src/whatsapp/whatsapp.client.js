@@ -15,7 +15,6 @@
  *
  * Logging convention: every transition logs one line prefixed `[whatsapp.client]`.
  */
-const path = require('path');
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
 
@@ -34,29 +33,47 @@ let lifecycleState = "uninitialized";
 const CLIENT_ID = process.env.WHATSAPP_CLIENT_ID || "factus-bot";
 const SESSION_PATH = process.env.WHATSAPP_SESSION_PATH || "./.wwebjs_auth";
 
-// Resolve the Chromium executable. whatsapp-web.js depends on puppeteer-core,
-// which does not download a browser on its own, so the launch must point at an
-// existing Chrome/Chromium binary. Prefer PUPPETEER_EXECUTABLE_PATH (set per
+// Resolve the Chromium executable. whatsapp-web.js bundles puppeteer, but browser
+// downloads are disabled (.puppeteerrc.cjs -> skipDownload), so the launch must
+// point at an existing Chrome/Chromium binary (the one shipped by the base image). Prefer PUPPETEER_EXECUTABLE_PATH (set per
 // environment: local, Docker, Render); fall back to the common system Chrome
 // path on Debian/Ubuntu images. Leaving this undefined makes Puppeteer resolve
 // against its cache directory, which is brittle across machines.
 const CHROME_EXECUTABLE_PATH =
   process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/google-chrome-stable";
 
+// Backoff before re-initializing after a disconnect, to avoid a tight reconnect
+// loop that would spawn Chromium processes faster than they can be torn down.
+const RECONNECT_DELAY_MS = Number(process.env.WHATSAPP_RECONNECT_DELAY_MS) || 5000;
+
 // Puppeteer launch flags for a headless Chromium (Requirement 7.3). The sandbox
-// flags are required to run under many containerized/root environments.
+// flags are required to run under many containerized/root environments. The
+// remaining flags trim Chromium's memory footprint, which matters on
+// low-memory hosts (e.g. Render's 512 MB instances):
+//   --single-process        run renderer in the browser process (fewer PIDs/RAM)
+//   --disable-dev-shm-usage write shared memory to /tmp instead of the tiny
+//                           /dev/shm that containers ship with
+//   --no-zygote             skip the zygote pre-fork process
+//   --disable-extensions    no extension subsystem
+//   --js-flags=--max-old-space-size=... cap V8 heap inside the renderer
 const PUPPETEER_OPTIONS = {
   headless: true,
   executablePath: CHROME_EXECUTABLE_PATH,
-  args: [ 
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process', // Ayuda a reducir el consumo de memoria en Render
-        '--disable-gpu'],
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--no-first-run',
+    '--no-zygote',
+    '--single-process',
+    '--disable-gpu',
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--disable-default-apps',
+    '--mute-audio',
+    '--js-flags=--max-old-space-size=256',
+  ],
 };
 
 // --- Internal helpers --------------------------------------------------------
@@ -144,10 +161,28 @@ function initializeClient({ onMessage } = {}) {
     setState("ready");
   });
 
-  // Disconnected: log the reason and attempt to reconnect (Requirement 6.4).
-  client.on("disconnected", (reason) => {
+  // Disconnected: log the reason, fully tear down the current browser, then
+  // reconnect (Requirement 6.4).
+  //
+  // Calling client.initialize() on a disconnected client WITHOUT destroying it
+  // first leaks the underlying Chromium process: the old browser can linger as
+  // a zombie while a new one is spawned, so every reconnect compounds memory
+  // usage until the host kills the service. We await destroy() to release the
+  // Puppeteer handles, then re-initialize after a short backoff to avoid a
+  // tight reconnect loop.
+  client.on("disconnected", async (reason) => {
     setState("disconnected", `reason: ${reason}`);
-    client.initialize();
+    try {
+      await client.destroy();
+    } catch (error) {
+      console.error(
+        `[whatsapp.client] error destroying client on disconnect: ${error.message}`
+      );
+    }
+    setTimeout(() => {
+      setState("initializing", "reconnecting after disconnect");
+      client.initialize();
+    }, RECONNECT_DELAY_MS);
   });
 
   // Route inbound messages to the injected handler (Requirement 6.1). Only wire

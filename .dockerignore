@@ -1,0 +1,23 @@
+# Dependencies are reinstalled inside the image via `npm install`.
+node_modules
+
+# Local Puppeteer browser cache — the base image ships its own Chrome.
+.cache
+
+# WhatsApp session data belongs to the local machine. On Render, persist it
+# with a mounted disk instead of baking it into the image. Shipping it bloats
+# the image and can carry a corrupt session into production.
+.wwebjs_auth
+.wwebjs_cache
+
+# VCS and env
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Editor / tooling
+.kiro
+*.log
+npm-debug.log*
