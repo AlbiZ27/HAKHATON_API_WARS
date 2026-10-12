@@ -29,7 +29,7 @@ let client = null;
 let lifecycleState = "uninitialized";
 
 // --- Configuration -----------------------------------------------------------
-
+const baseProjectDir = process.env.RENDER_SRC_DIR || path.join(__dirname, '../../');
 // Session_Store identity and location (Requirement 7.4). Both read from the
 // environment with documented defaults.
 const CLIENT_ID = process.env.WHATSAPP_CLIENT_ID || "factus-bot";
@@ -39,7 +39,7 @@ const SESSION_PATH = process.env.WHATSAPP_SESSION_PATH || "./.wwebjs_auth";
 // flags are required to run under many containerized/root environments.
 const PUPPETEER_OPTIONS = {
   headless: true,
-  executablePath: path.join(__dirname, '../.cache/puppeteer/chrome/linux-155.0.8059.39/chrome-linux64/chrome'),
+  executablePath: path.join(baseProjectDir, '.cache/puppeteer/chrome/linux-155.0.8059.39/chrome-linux64/chrome'),
   args: [ 
         '--no-sandbox',
         '--disable-setuid-sandbox',
