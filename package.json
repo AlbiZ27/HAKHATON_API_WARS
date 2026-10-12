@@ -19,7 +19,8 @@
   },
   "scripts": {
     "test": "node --test",
-    "start": "node --env-file=.env src/server.js"
+    "dev": "node --env-file=.env src/server.js",
+    "start": "node src/server.js"
   },
   "dependencies": {
     "debug": "^4.4.3",
