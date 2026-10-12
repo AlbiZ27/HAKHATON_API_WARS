@@ -267,6 +267,36 @@ function isInvoiceComplete(invoice) {
 }
 
 /**
+ * Decide si un mensaje transporta datos de factura utilizables, operando sobre
+ * la salida del Regex_Extractor (`extractInvoiceFromSingleMessage`) en lugar del
+ * texto crudo, para reutilizar la lógica de reconocimiento ya existente.
+ *
+ * Devuelve `true` si está presente CUALQUIERA de:
+ *  - `extracted.customer.identification`, o
+ *  - `extracted.customer.name`, o
+ *  - un item con `description` no vacía, o
+ *  - `extracted.payment.method`.
+ *
+ * El correo electrónico por sí solo NO cuenta como dato de factura para esta
+ * decisión de enrutamiento: `validateInvoice` no considera el email, que se
+ * preserva aparte y se exige antes de confirmar vía el flujo paso a paso.
+ *
+ * Es una función pura y defensiva: nunca lanza ante entradas con campos
+ * faltantes o `null` (usa optional chaining en todos los accesos).
+ *
+ * @param {Object} extracted - Salida de `extractInvoiceFromSingleMessage(text)` (Invoice_Shape)
+ * @returns {boolean} `true` si el mensaje aporta al menos un dato de factura
+ */
+function messageHasInvoiceData(extracted) {
+  return Boolean(
+    extracted?.customer?.identification ||
+    extracted?.customer?.name ||
+    extracted?.items?.some(item => item?.description) ||
+    extracted?.payment?.method
+  );
+}
+
+/**
  * Procesa un mensaje usando el LLM (simulación o integración real)
  * @param {string} text - Texto del mensaje
  * @param {Object} conversationState - Estado actual de la conversación
@@ -286,7 +316,7 @@ async function processMessage(text, conversationState = { currentStep: "START", 
       response:
         "¡Hola! 👋 Soy el asistente de facturación electrónica de *Factus*.\n\n" +
         "Puedo ayudarte a generar facturas electrónicas válidas ante la DIAN directamente por WhatsApp.\n\n" +
-        "Para empezar, escribe: *factura* , y te guío paso a paso, o mandame todos los datos juntos, por ejemplo:\n" +
+        "Para empezar, escribe: *factura*, y te guío paso a paso, o mandame todos los datos juntos, por ejemplo:\n" +
         '"Factura a Juan Pérez, CC 1234567890, 2 camisetas negras a 50.000 cada una, pagó en efectivo."',
       nextStep: "START"
     };
@@ -311,22 +341,10 @@ async function processMessage(text, conversationState = { currentStep: "START", 
     };
   }
 
-  // Si estamos en medio de una conversación
+  // (4) Paso activo: si estamos en medio de una conversación, delegar en el
+  // flujo paso a paso para el campo del estado actual.
   if (conversationState.currentStep && conversationState.currentStep !== "START") {
     return processConversationalStep(text, conversationState);
-  }
-
-  // Si el usuario inicia una factura
-  if (intent === "START_INVOICE") {
-    return {
-      response: "¡Claro! Vamos a generar una factura. ¿Cuál es el número de documento del cliente?",
-      nextStep: "WAITING_FOR_CUSTOMER_ID",
-      invoiceData: {
-        customer: { identification: null, name: null },
-        items: [],
-        payment: { method: null }
-      }
-    };
   }
 
   // Para una factura completa capturada de un solo mensaje: si falta el correo,
@@ -350,46 +368,70 @@ async function processMessage(text, conversationState = { currentStep: "START", 
   };
 
   // Primera línea: intentar extraer todo con el motor de reglas (regex). Es
-  // instantáneo y resuelve la mayoría de los mensajes bien formados.
+  // instantáneo y resuelve la mayoría de los mensajes bien formados. Se preserva
+  // un correo detectado en el texto, aparte del flujo de validación de factura.
   let invoice = extractInvoiceFromSingleMessage(text);
   if (invoice.customer) invoice.customer.email = extractEmail(text) ?? null;
 
-  // Si la información está completa y válida, pedir correo (si falta) o confirmar.
-  if (isInvoiceComplete(invoice)) {
-    return toCompletionOrEmail(invoice);
-  }
+  // (5) Extracción con datos: si el mensaje aporta datos de factura utilizables
+  // (aunque contenga "factura"/"facturar"), se enruta a la extracción —regex
+  // primero, Gemini como respaldo— ANTES del atajo START_INVOICE, de modo que un
+  // Complete_Request ya no es secuestrado hacia el formulario vacío.
+  if (messageHasInvoiceData(invoice)) {
+    // Si la información está completa y válida, pedir correo (si falta) o confirmar.
+    if (isInvoiceComplete(invoice)) {
+      return toCompletionOrEmail(invoice);
+    }
 
-  // Fallback inteligente: si el regex no logró una factura completa, pedirle a
-  // Gemini que extraiga los datos del lenguaje natural. Gemini nunca lanza: si
-  // falla o excede el timeout devuelve null, y seguimos con el flujo normal.
-  if (isGeminiConfigured()) {
-    const geminiInvoice = await extractInvoiceWithGemini(text);
-    if (geminiInvoice) {
-      // Conservar un correo detectado en el texto si Gemini no lo trajo.
-      if (!geminiInvoice.customer?.email) {
-        const emailInText = extractEmail(text);
-        if (emailInText) geminiInvoice.customer.email = emailInText;
+    // Fallback inteligente: si el regex no logró una factura completa, pedirle a
+    // Gemini que extraiga los datos del lenguaje natural. Gemini nunca lanza: si
+    // falla o excede el timeout devuelve null, y seguimos con el flujo normal.
+    if (isGeminiConfigured()) {
+      const geminiInvoice = await extractInvoiceWithGemini(text);
+      if (geminiInvoice) {
+        // Conservar un correo detectado en el texto si Gemini no lo trajo.
+        if (!geminiInvoice.customer?.email) {
+          const emailInText = extractEmail(text);
+          if (emailInText) geminiInvoice.customer.email = emailInText;
+        }
+        if (isInvoiceComplete(geminiInvoice)) {
+          return toCompletionOrEmail(geminiInvoice);
+        }
+        // Parcial: reemplazo secuencial (sin merge campo a campo); usar lo de
+        // Gemini como base para pedir lo que falta.
+        invoice = geminiInvoice;
       }
-      if (isInvoiceComplete(geminiInvoice)) {
-        return toCompletionOrEmail(geminiInvoice);
-      }
-      // Parcial: usar lo de Gemini como base para pedir lo que falta.
-      invoice = geminiInvoice;
+    }
+
+    // Si (con regex o Gemini) sigue incompleta, mostrar qué falta y activar el
+    // flujo paso a paso conservando los datos ya aportados.
+    const validation = validateInvoice(invoice);
+    if (!validation.valid) {
+      return {
+        response: buildValidationResponse(validation.errors, invoice),
+        nextStep: conversationState.currentStep || "START",
+        invoice,
+        validationErrors: validation.errors
+      };
     }
   }
 
-  // Si (con regex o Gemini) sigue incompleta, mostrar qué falta.
-  const validation = validateInvoice(invoice);
-  if (!validation.valid) {
+  // (6) START_INVOICE sin datos: el mensaje contiene el keyword de inicio pero no
+  // aporta datos utilizables (messageHasInvoiceData === false). Abrir el flujo
+  // paso a paso vacío para empezar a recolectar.
+  if (intent === "START_INVOICE") {
     return {
-      response: buildValidationResponse(validation.errors, invoice),
-      nextStep: conversationState.currentStep || "START",
-      invoice,
-      validationErrors: validation.errors
+      response: "¡Claro! Vamos a generar una factura. ¿Cuál es el número de documento del cliente?",
+      nextStep: "WAITING_FOR_CUSTOMER_ID",
+      invoiceData: {
+        customer: { identification: null, name: null },
+        items: [],
+        payment: { method: null }
+      }
     };
   }
 
-  // Si no se entiende el mensaje
+  // (7) Desconocido: no se entiende el mensaje.
   return {
     response: "Lo siento, no entendí bien tu mensaje. Puedo ayudarte a generar una factura. ¿Quieres intentarlo?",
     nextStep: "START"
@@ -583,6 +625,7 @@ module.exports = {
   validateConfirmation,
   detectIntent,
   extractInvoiceFromSingleMessage,
+  messageHasInvoiceData,
   buildInvoiceSummary,
   buildValidationResponse,
   INTENT_PATTERNS,
