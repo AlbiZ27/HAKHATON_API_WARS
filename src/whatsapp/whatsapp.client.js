@@ -148,17 +148,78 @@ function initializeClient({ onMessage } = {}) {
  * (Requirements 5.1, 2.4). The service-layer readiness gate lives in
  * `whatsapp.service.js`; this wrapper simply forwards to the library.
  *
+ * The `content` may be a plain text string or a `MessageMedia` instance (used to
+ * deliver the invoice PDF). The optional `options` object is forwarded verbatim
+ * to the library — e.g. `{ caption }` when sending media. Both extra arguments
+ * are backward compatible: existing text sends keep calling `sendMessage(chatId, body)`.
+ *
  * @param {string} chatId - the whatsapp-web.js Chat_Id (e.g. "573001112233@c.us")
- * @param {string} body - the message text body
+ * @param {string|import("whatsapp-web.js").MessageMedia} content - text body or media
+ * @param {object} [options] - options forwarded to client.sendMessage (e.g. { caption })
  * @returns {Promise<import("whatsapp-web.js").Message>} the sent message
  */
-async function sendMessage(chatId, body) {
-  return client.sendMessage(chatId, body);
+async function sendMessage(chatId, content, options) {
+  return client.sendMessage(chatId, content, options);
+}
+
+/**
+ * Resolve a Chat_Id that is safe to send MEDIA to.
+ *
+ * WhatsApp's privacy addressing delivers some senders as "<linked-id>@lid".
+ * Sending plain text to a "@lid" works, but sending media currently fails deep
+ * inside whatsapp-web.js ("Data passed to getter must include an id property ...
+ * but got undefined") because the library cannot resolve the chat/contact model
+ * from a "@lid". This helper tries to turn a "@lid" into the classic
+ * "<number>@c.us" id, which the media path can handle:
+ *
+ *   1. look up the Contact behind the "@lid" (getContactById)
+ *   2. read its real phone number (Contact.number)
+ *   3. validate/normalize it back into a wid via getNumberId
+ *
+ * On any failure (or for non-"@lid" ids) it returns the original id unchanged,
+ * so the caller can still attempt the send and fall back as needed. Never throws.
+ *
+ * @param {string} chatId - the inbound Chat_Id (may be "@c.us" or "@lid")
+ * @returns {Promise<string>} a Chat_Id to use for the media send
+ */
+async function resolveSendableChatId(chatId) {
+  if (typeof chatId !== "string" || !chatId.endsWith("@lid")) {
+    return chatId;
+  }
+
+  try {
+    const contact = await client.getContactById(chatId);
+    const number = contact?.number;
+    if (!number) {
+      console.warn(
+        `[whatsapp.client] no number resolved for ${chatId}; using original id`
+      );
+      return chatId;
+    }
+
+    const wid = await client.getNumberId(number);
+    const resolved = wid?._serialized;
+    if (!resolved) {
+      console.warn(
+        `[whatsapp.client] number ${number} not registered; using original id`
+      );
+      return chatId;
+    }
+
+    console.log(`[whatsapp.client] resolved ${chatId} -> ${resolved} for media`);
+    return resolved;
+  } catch (error) {
+    console.warn(
+      `[whatsapp.client] failed to resolve ${chatId} for media: ${error.message}`
+    );
+    return chatId;
+  }
 }
 
 module.exports = {
   initializeClient,
   sendMessage,
+  resolveSendableChatId,
   getClientState,
   isReady,
 };

@@ -78,6 +78,7 @@ async function handleInboundMessage(message) {
     } else {
       console.log("[whatsapp.handler] no reply dispatched (missing response or phoneNumber)");
     }
+
   } catch (error) {
     // Req 4.6: log and swallow so subsequent messages keep flowing.
     console.error("[whatsapp.handler] Business flow error:", error);
