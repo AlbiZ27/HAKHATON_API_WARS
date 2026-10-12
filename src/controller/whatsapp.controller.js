@@ -5,7 +5,17 @@
 
 const { processMessage, validateConfirmation } = require("../services/llm.service");
 const { getOrCreateConversation, advanceConversation, saveMessage, deleteConversation } = require("../services/conversation.service");
-const { createInvoice } = require("../factus/factus.service");
+const { createInvoice, getInvoicePdf } = require("../factus/factus.service");
+const { storePdf } = require("../services/pdf-store.service");
+
+// Base pública del servidor para construir enlaces de descarga del PDF. En
+// local es http://localhost:PORT, pero para que el enlace sea accesible desde
+// el teléfono del usuario debe apuntar a una URL pública (ngrok / Cloudflare
+// Tunnel / deploy), configurada en PUBLIC_BASE_URL.
+function getPublicBaseUrl() {
+  const base = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+  return base.replace(/\/+$/, "");
+}
 
 /**
  * Procesa un mensaje entrante de WhatsApp
@@ -131,13 +141,41 @@ async function handleConfirmation(payload) {
       const factusResponse = await createInvoice(invoice);
 
       if (factusResponse.ok) {
+        // Entrega del PDF por WhatsApp mediante un ENLACE de descarga.
+        //
+        // No adjuntamos el archivo: whatsapp-web.js falla al enviar media a los
+        // chats con direccionamiento "@lid" (número enmascarado), que es el caso
+        // habitual. El envío de texto sí funciona, así que descargamos el PDF de
+        // Factus, lo publicamos en el store HTTP y mandamos un único mensaje con
+        // el enlace. Esto funciona para todos los chats ("@lid" y "@c.us").
+        //
+        // El correo del cliente se sigue capturando y enviando a Factus (dato
+        // del adquiriente). El envío del PDF por correo lo hace Factus en
+        // producción; queda disponible como escalabilidad futura.
+        let downloadUrl = null;
+
+        const pdf = await getInvoicePdf(factusResponse.invoiceNumber);
+        if (pdf.ok) {
+          const token = storePdf({ base64: pdf.base64, filename: pdf.filename });
+          downloadUrl = `${getPublicBaseUrl()}/invoices/${token}.pdf`;
+        } else {
+          console.error(
+            `[whatsapp.controller] No se pudo descargar el PDF de la factura ` +
+              `${factusResponse.invoiceNumber}: ${pdf.reason}`
+          );
+        }
+
+        // Línea de entrega: enlace de descarga, o un mensaje de reintento si no
+        // se pudo obtener el PDF.
+        const deliveryLine = downloadUrl
+          ? `Puedes descargar tu factura aquí:\n${downloadUrl}`
+          : `No pude obtener el PDF en este momento. Escribe *factura* para reintentar.`;
+
         const responseMessage = `✅ *Factura generada correctamente!*\n\n` +
           `Número de factura: ${factusResponse.invoiceNumber}\n` +
           `Código de referencia: ${factusResponse.referenceCode}\n` +
           `Total: $${factusResponse.total}\n\n` +
-          (invoice?.customer?.email
-            ? `Se ha enviado el PDF a ${invoice.customer.email}.`
-            : `Se ha enviado el PDF a tu correo registrado en Factus.`);
+          deliveryLine;
 
         // Limpiar conversación
         deleteConversation(phoneNumber);

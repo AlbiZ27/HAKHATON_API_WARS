@@ -11,6 +11,7 @@
 
 const express = require("express");
 const { getClientState } = require("./whatsapp/whatsapp.client");
+const { getPdf } = require("./services/pdf-store.service");
 
 const app = express();
 
@@ -25,6 +26,24 @@ app.get("/health", (req, res) => {
     service: "factus-whatsapp-bot",
     whatsapp: getClientState(),
   });
+});
+
+// Invoice PDF download. When sending the PDF as a WhatsApp attachment is not
+// possible (whatsapp-web.js media bug on "@lid" chats), the bot gives the user a
+// link to this route instead. The token maps to an in-memory PDF (pdf-store).
+app.get("/invoices/:token.pdf", (req, res) => {
+  const pdf = getPdf(req.params.token);
+  if (!pdf) {
+    res.status(404).json({ status: "not_found", message: "PDF no disponible o expirado." });
+    return;
+  }
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename="${pdf.filename}"`
+  );
+  res.send(pdf.buffer);
 });
 
 module.exports = app;
