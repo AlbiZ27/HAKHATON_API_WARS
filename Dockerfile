@@ -16,8 +16,9 @@ RUN npm install
 # Copiar todo el código de tu proyecto al contenedor
 COPY . .
 
-# Exponer el puerto que usa tu servidor en Render (10000)
-EXPOSE 10000
+# Puerto por defecto del servidor. En Railway es solo informativo: la plataforma
+# inyecta PORT en tiempo de ejecución y src/server.js lo lee automáticamente.
+EXPOSE 3000
 
 # Comando para iniciar tu bot
 CMD ["node", "src/server.js"]

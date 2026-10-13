@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/WhatsApp-whatsapp--web.js-25D366?logo=whatsapp&logoColor=white" alt="WhatsApp">
   <img src="https://img.shields.io/badge/Factus-API-0A66C2" alt="Factus">
   <img src="https://img.shields.io/badge/IA-Google%20Gemini-8E75B2?logo=googlegemini&logoColor=white" alt="Gemini">
-  <img src="https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white" alt="Render">
+  <img src="https://img.shields.io/badge/Deploy-Railway-0B0D0E?logo=railway&logoColor=white" alt="Railway">
   <img src="https://img.shields.io/badge/Tests-node%20--test%20%2B%20fast--check-informational" alt="Tests">
   <img src="https://img.shields.io/badge/License-ISC-blue" alt="License">
 </p>
@@ -43,10 +43,10 @@ El bot interpreta el mensaje, te pide confirmación y responde con un **enlace d
  
 > ### ⏳ Lee esto antes de probar
 >
-> El bot está alojado en un **servicio gratuito (Render)** que **suspende la aplicación tras un rato de inactividad**. Esto implica:
+> El bot está desplegado en **[Railway](https://railway.com/)** como un servicio Docker siempre activo. Ten en cuenta:
 >
-> - 🕐 **El primer mensaje puede tardar hasta ~1 minuto** en recibir respuesta mientras el servicio se reactiva. Si no responde de inmediato, espera un momento y vuelve a escribir — **el bot está despertando, no está caído.**
-> - 🧠 **El bot no tiene memoria persistente.** El estado de cada conversación y las facturas generadas se guardan **en memoria**, no en una base de datos. Si el servicio se suspende o reinicia, **se pierde el progreso de las conversaciones en curso** (habría que empezar de nuevo con `factura`). Esto es una decisión consciente para el MVP; la persistencia en base de datos queda como mejora a futuro.
+> - 🕐 **La primera respuesta puede tardar unos segundos** si el servicio se acaba de redesplegar o reiniciar, mientras Chromium arranca y WhatsApp se reconecta.
+> - 🧠 **El bot no tiene memoria persistente.** El estado de cada conversación y las facturas generadas se guardan **en memoria**, no en una base de datos. Si el servicio se reinicia o se redespliega, **se pierde el progreso de las conversaciones en curso** (habría que empezar de nuevo con `factura`). Esto es una decisión consciente para el MVP; la persistencia en base de datos queda como mejora a futuro.
 > - 📲 **Escríbele desde otro número:** los mensajes propios y los de grupos se ignoran.
  
 ### 🎬 Guía rápida de la demo
@@ -55,7 +55,7 @@ El bot interpreta el mensaje, te pide confirmación y responde con un **enlace d
  
 | Paso | Qué hacer | Qué debería pasar |
 |:---:|---|---|
-| 1️⃣ | Guarda el número y envía `hola` | El bot se presenta y explica qué puede hacer *(si es el primer mensaje, puede tardar ~1 min)* |
+| 1️⃣ | Guarda el número y envía `hola` | El bot se presenta y explica qué puede hacer |
 | 2️⃣ | Envía el mensaje de ejemplo (o uno propio) | El bot interpreta cliente, documento, productos, precios y forma de pago |
 | 3️⃣ | Responde lo que falte (p. ej. el **correo** del cliente) | El bot completa los datos de la factura |
 | 4️⃣ | Revisa el **resumen** y responde `Sí` | El bot genera la factura en **Factus** |
@@ -98,7 +98,7 @@ El bot interpreta el mensaje, te pide confirmación y responde con un **enlace d
 - [Configuración](#-configuración)
 - [Primer arranque (vincular WhatsApp)](#-primer-arranque-vincular-whatsapp)
 - [Pruebas](#-pruebas)
-- [Despliegue en Render](#-despliegue-en-render)
+- [Despliegue en Railway](#-despliegue-en-railway)
 - [Solución de problemas](#-solución-de-problemas)
 - [Roadmap](#-roadmap)
 - [API de Factus](#-api-de-factus)
@@ -134,7 +134,7 @@ flowchart LR
     FA --> PS[PDF store] --> EX["Express<br/>enlace de descarga"]
 ```
  
-> ⚠️ **Sobre la sesión:** la librería puede persistir la sesión en disco (`LocalAuth`). Sin embargo, en el despliegue actual (Render, plan gratuito **sin disco persistente**) la sesión **no sobrevive** a los reinicios del contenedor, por lo que puede requerir re-vincular el QR. Ver [Limitaciones del plan gratuito](#limitaciones-del-plan-gratuito).
+> ⚠️ **Sobre la sesión:** la librería persiste la sesión en disco (`LocalAuth`) en la ruta `WHATSAPP_SESSION_PATH`. En Railway, el sistema de archivos del contenedor es efímero: para que la sesión sobreviva a los redespliegues hay que montar un **Volume** y apuntar `WHATSAPP_SESSION_PATH` a él. Ver [Despliegue en Railway](#-despliegue-en-railway).
  
 ---
  
@@ -206,7 +206,7 @@ sequenceDiagram
 - ✅ Flujo conversacional interactivo (máquina de estados)
 - ✅ Ignora mensajes propios y de grupos
 - ✅ Soporte para **Sandbox** y **producción** de Factus
-- ✅ Desplegado en **Render** (servicio gratuito)
+- ✅ Desplegado en **Railway** (Docker)
 ---
  
 ## 🛠 Tecnologías
@@ -220,7 +220,7 @@ sequenceDiagram
 | IA (respaldo) | Google Gemini API |
 | Facturación | Factus API |
 | Pruebas | `node --test` + `fast-check` (property-based testing) |
-| Despliegue | Render (Docker) |
+| Despliegue | Railway (Docker) |
  
 ---
  
@@ -294,7 +294,7 @@ GEMINI_API_KEY=...
 # Servidor
 PORT=3000
 # URL pública para construir los enlaces de descarga del PDF
-# (en local: http://localhost:3000 ; en Render: la URL del servicio)
+# (en local: http://localhost:3000 ; en Railway: el dominio público del servicio)
 PUBLIC_BASE_URL=http://localhost:3000
 ```
  
@@ -323,33 +323,40 @@ Incluye tests unitarios, de resiliencia y **property-based tests** (`fast-check`
  
 ---
  
-## ☁️ Despliegue en Render
+## ☁️ Despliegue en Railway
  
-El bot está desplegado como **Web Service** en [Render](https://render.com/) (plan gratuito), lo que lo mantiene corriendo como un **proceso permanente** que escucha WhatsApp.
+El bot está desplegado en [Railway](https://railway.com/) como un servicio **siempre activo**: un **proceso permanente** que mantiene abierta la sesión de WhatsApp. Un entorno *serverless* no sirve para esto.
  
 **Lo que se configuró:**
  
-- **Tipo de servicio:** Web Service (proceso continuo — el bot mantiene abierta la sesión de WhatsApp, por lo que un entorno *serverless* no sirve).
-- **Entorno:** Docker, para dar soporte nativo a Chromium/Puppeteer.
-- **Build:** `npm install` (Puppeteer prepara su Chromium).
-- **Start:** `node src/server.js`.
-- **Variables de entorno:** se configuran en el panel de Render (*Environment*), **no** con un archivo `.env`. Incluyen las credenciales de Factus, `GEMINI_API_KEY` y `PUBLIC_BASE_URL` (la URL pública que asigna Render, usada para construir los enlaces de descarga del PDF).
-- **Chromium/Puppeteer:** se ejecuta headless con los flags `--no-sandbox --disable-setuid-sandbox`, requeridos en entornos contenerizados.
-- **Vinculación de WhatsApp:** el QR del primer arranque se escanea **leyéndolo desde los logs** del servicio en Render.
-### Limitaciones del plan gratuito
+- **Origen:** *New Project → Deploy from GitHub repo*, apuntando a este repositorio. Cada push a la rama configurada dispara un nuevo deploy.
+- **Build:** Railway detecta el `Dockerfile` y construye la imagen. Esta parte de `ghcr.io/puppeteer/puppeteer`, que ya trae **Google Chrome** y sus dependencias de Linux. `.puppeteerrc.cjs` (`skipDownload: true`) evita descargar un segundo Chromium durante `npm install`.
+- **Start:** `node src/server.js` (definido en el `CMD` del `Dockerfile`).
+- **Puerto:** Railway inyecta la variable `PORT` y el servidor la lee automáticamente. No hace falta definirla.
+- **Dominio público:** generado en *Settings → Networking → Generate Domain* (`https://<servicio>.up.railway.app`).
+- **Variables de entorno:** se configuran en la pestaña *Variables* del servicio, **no** con un archivo `.env`. Incluyen las credenciales de Factus, `GEMINI_API_KEY`, `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable` y `PUBLIC_BASE_URL` (el dominio público de Railway, usado para construir los enlaces de descarga del PDF).
+- **Chromium/Puppeteer:** se ejecuta headless con `--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage` y flags de bajo consumo de memoria, necesarios en contenedores.
+- **Vinculación de WhatsApp:** el QR del primer arranque se escanea **leyéndolo desde los *Deploy Logs*** del servicio. Cuando el log muestra `lifecycle -> ready`, el bot está conectado. Verificalo con `GET https://<servicio>.up.railway.app/health`.
+### Persistencia de la sesión de WhatsApp
  
-- ⏳ **Suspensión por inactividad:** Render apaga el servicio tras un período sin tráfico y lo reactiva al llegar una nueva petición → de ahí el **retraso de hasta ~1 minuto** en la primera interacción.
-- 🧠 **Sin memoria persistente:** el estado de las conversaciones y las facturas viven **en memoria**. Un reinicio o suspensión **borra ese estado** (y puede requerir re-escanear el QR, al no haber disco persistente). La persistencia en base de datos queda como mejora futura.
+El sistema de archivos del contenedor se borra en cada redespliegue. Para no volver a escanear el QR cada vez:
+ 
+1. En el servicio, agrega un **Volume** con *mount path* `/data`.
+2. Define `WHATSAPP_SESSION_PATH=/data/.wwebjs_auth`.
+### Limitaciones actuales
+ 
+- 🧠 **Sin memoria persistente de negocio:** el estado de las conversaciones y los PDFs viven **en memoria**. Un reinicio o redespliegue **borra ese estado**, y los enlaces de PDF ya emitidos dejan de funcionar. La persistencia en base de datos queda como mejora futura.
+- 🔄 **Redespliegues:** sin Volume, cada deploy obliga a re-vincular WhatsApp con un nuevo QR.
 ---
  
 ## 🩺 Solución de problemas
  
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
-| El bot no responde | Servicio suspendido en Render | Espera ~1 minuto y reenvía el mensaje |
+| El bot no responde | Servicio reiniciando o WhatsApp no está `ready` | Revisa `/health` y los *Deploy Logs* en Railway |
 | Te pide empezar de nuevo | Estado en memoria perdido por un reinicio | Escribe `factura` |
 | No responde a tus propios mensajes | Los mensajes propios y de grupos se ignoran | Escribe desde otro número |
-| No aparece el QR o la sesión se cayó | Sesión no persistida (sin disco persistente) | Revisa los logs y vuelve a escanear el QR |
+| No aparece el QR o la sesión se cayó | Sesión no persistida (sin Volume en Railway) | Revisa los *Deploy Logs*, vuelve a escanear el QR y monta un Volume |
 | Error de autenticación con Factus | Credenciales o `FACTUS_BASE_URL` incorrectos | Revisa las variables de entorno |
 | El enlace del PDF no abre | `PUBLIC_BASE_URL` mal configurada, o PDF perdido tras un reinicio | Corrige la URL o genera la factura de nuevo |
  
@@ -359,7 +366,7 @@ El bot está desplegado como **Web Service** en [Render](https://render.com/) (p
  
 - [ ] Persistencia en base de datos (conversaciones, facturas y sesión de WhatsApp)
 - [ ] Envío del PDF por correo al cliente (Factus en producción)
-- [ ] Disco persistente o plan de pago para evitar suspensiones y re-vincular el QR
+- [ ] Persistir los PDFs fuera de la memoria (almacenamiento de objetos) para que los enlaces sobrevivan a reinicios
 - [ ] Evaluar la Meta Cloud API para mayor estabilidad
 - [ ] Soporte multiusuario / multiempresa
 ---

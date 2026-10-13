@@ -36,7 +36,7 @@ const SESSION_PATH = process.env.WHATSAPP_SESSION_PATH || "./.wwebjs_auth";
 // Resolve the Chromium executable. whatsapp-web.js bundles puppeteer, but browser
 // downloads are disabled (.puppeteerrc.cjs -> skipDownload), so the launch must
 // point at an existing Chrome/Chromium binary (the one shipped by the base image). Prefer PUPPETEER_EXECUTABLE_PATH (set per
-// environment: local, Docker, Render); fall back to the common system Chrome
+// environment: local, Docker, Railway); fall back to the common system Chrome
 // path on Debian/Ubuntu images. Leaving this undefined makes Puppeteer resolve
 // against its cache directory, which is brittle across machines.
 const CHROME_EXECUTABLE_PATH =
@@ -49,7 +49,7 @@ const RECONNECT_DELAY_MS = Number(process.env.WHATSAPP_RECONNECT_DELAY_MS) || 50
 // Puppeteer launch flags for a headless Chromium (Requirement 7.3). The sandbox
 // flags are required to run under many containerized/root environments. The
 // remaining flags trim Chromium's memory footprint, which matters on
-// low-memory hosts (e.g. Render's 512 MB instances):
+// low-memory container hosts (e.g. small Railway instances):
 //   --single-process        run renderer in the browser process (fewer PIDs/RAM)
 //   --disable-dev-shm-usage write shared memory to /tmp instead of the tiny
 //                           /dev/shm that containers ship with
