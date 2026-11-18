@@ -1,6 +1,9 @@
-
 <div align="center">
-<h1>🥉 ¡TERCER PUESTO! 🏆</h1>
+
+<h2>🥉 ¡TERCER PUESTO! 🏆</h2>
+
+<p><strong>🏅 Reconocidos entre los mejores proyectos de la competencia</strong></p>
+
 <h1>🧾 Factus WhatsApp Bot</h1>
 
 <p><strong>Facturación electrónica (DIAN) directamente desde WhatsApp.</strong></p>
@@ -15,6 +18,10 @@
   <img src="https://img.shields.io/badge/Deploy-Railway-0B0D0E?logo=railway&logoColor=white" alt="Railway">
   <img src="https://img.shields.io/badge/Tests-node%20--test%20%2B%20fast--check-informational" alt="Tests">
   <img src="https://img.shields.io/badge/License-ISC-blue" alt="License">
+</p>
+
+<p>
+  <em>Un logro construido con ideas, esfuerzo, aprendizaje y trabajo en equipo. ¡Esto es solo el comienzo! 🚀</em>
 </p>
 
 </div>
